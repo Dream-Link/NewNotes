@@ -397,14 +397,25 @@
         function showPromptModal(title, message, defaultValue, onConfirm) { toggleBodyScroll(true); const modal = document.getElementById('promptModal'); document.getElementById('promptModalTitle').textContent = title; document.getElementById('promptModalMessage').textContent = message; const input = document.getElementById('promptModalInput'); input.value = defaultValue; const confirmBtn = document.getElementById('promptModalConfirm'); const cancelBtn = document.getElementById('promptModalCancel'); const confirmHandler = () => { onConfirm(input.value); modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cancelHandler = () => { modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cleanup = () => { confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); }; confirmBtn.addEventListener('click', confirmHandler); cancelBtn.addEventListener('click', cancelHandler); modal.classList.remove('hidden'); input.focus(); input.select(); }
         function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
         
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('storeName').textContent = storeName;
-            const savedTheme = localStorage.getItem('currentTheme') || 'auto';
-            if (savedTheme === 'auto') { applyAutoTheme(); } else { applyTheme(savedTheme); }
-            populateThemeSelector();
-            setLanguage(currentLanguage);
+       document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('storeName').textContent = storeName;
+    const savedTheme = localStorage.getItem('currentTheme') || 'auto';
+    if (savedTheme === 'auto') { applyAutoTheme(); } else { applyTheme(savedTheme); }
+    populateThemeSelector();
+    setLanguage(currentLanguage);
 
-            if (db) {
+    // --- नया ऑटो-लॉगिन और डेटा सिंक लॉजिक ---
+    if (db) {
+        const email = "yourstore@email.com"; // <-- स्टेप B में बनाया गया ईमेल डालें
+        const password = "yourstrongpassword"; // <-- स्टेप B में बनाया गया पासवर्ड डालें
+
+        firebase.auth().signInWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                console.log("Authentication successful!", userCredential.user.email);
+                showToast(`✅ ${userCredential.user.email} के रूप में लॉग इन`, 'success');
+
+                // लॉग-इन सफल होने के बाद ही डेटा सिंक करें
+                // प्रोडक्ट्स को रियल-टाइम में सिंक करें
                 db.collection("products").onSnapshot((snapshot) => {
                     const tempProducts = {};
                     snapshot.forEach((doc) => {
@@ -414,10 +425,9 @@
                     console.log("Products synced from Firebase!");
                     searchAndSortProducts();
                     updateDashboardStats();
-                }, (error) => {
-                    console.error("Error syncing products: ", error);
-                });
+                }, (error) => console.error("Error syncing products: ", error));
 
+                // बिल हिस्ट्री को रियल-टाइम में सिंक करें
                 db.collection("billHistory").orderBy("date", "desc").onSnapshot((snapshot) => {
                     const tempHistory = [];
                     snapshot.forEach((doc) => {
@@ -426,10 +436,22 @@
                     billHistory = tempHistory;
                     console.log("Bill history synced from Firebase!");
                     filterAndDisplayHistory();
-                }, (error) => {
-                    console.error("Error syncing bill history: ", error);
-                });
-            }
+                }, (error) => console.error("Error syncing bill history: ", error));
+
+            })
+            .catch((error) => {
+                console.error("Authentication Failed:", error.message);
+                alert("लॉग-इन विफल! कृपया ईमेल/पासवर्ड या सुरक्षा नियम जांचें।");
+            });
+    }
+    // --- अंत ---
+
+    // बाकी का DOMContentLoaded कोड वैसा ही रहेगा
+    history.replaceState({ section: 'home' }, '', '#home');
+    window.addEventListener('popstate', handleBackButton);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (localStorage.getItem('currentTheme') === 'auto') { applyAutoTheme(); } });
+    const initialSection = location.hash.substring(1) || 'home';
+    showSection(initialSection, false);
 
             history.replaceState({ section: 'home' }, '', '#home');
             window.addEventListener('popstate', handleBackButton);
@@ -610,7 +632,68 @@
         function displayBillHistory(billsToDisplay = billHistory) { const historyDiv = document.getElementById('billHistory'); historyDiv.className = ''; if (billsToDisplay.length === 0) { historyDiv.innerHTML = `<div class="text-center py-16 text-gray-400 flex flex-col items-center"><svg class="w-16 h-16 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg><h3 class="font-bold text-md" data-lang-key="empty_state_history_title">कोई बिल हिस्ट्री नहीं है</h3><p class="text-sm" data-lang-key="empty_state_history_desc">सेव किए गए बिल यहाँ दिखाई देंगे।</p></div>`; return; } let currentDisplayDate = ''; let finalHtml = ''; billsToDisplay.forEach(bill => { const billDate = new Date(bill.date); const displayDate = billDate.toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' }); if (displayDate !== currentDisplayDate) { currentDisplayDate = displayDate; finalHtml += `<div class="text-sm font-bold text-gray-500 pt-3 pb-1">${displayDate}</div>`; } const billDetailsHtml = bill.items.map(item => { const unitLabel = unitTextMap[item.unit] || item.unit; const totalUnits = item.quantity * (item.fillingQuantity || 1); const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); return `<div class="border-t first:border-t-0 py-2" style="border-color: var(--border-color);"><div class="flex justify-between font-semibold text-sm"><span>${item.name}</span><span>₹${(item.price * item.quantity).toFixed(2)}</span></div><div class="flex justify-between text-xs" style="color:var(--text-light)"><span>${item.quantity} × (₹${item.price}/${item.fillingQuantity || 1} ${unitLabel})</span><span><span data-lang-key="text_total">कुल</span>: ${formattedTotalUnits} ${unitLabel}</span></div></div>`; }).join(''); finalHtml += ` <div class="border-b cursor-pointer fade-in p-3" style="border-color: var(--border-color)" onclick="toggleBillDetails('${bill.id}')"><div class="flex justify-between items-center"><div><h4 class="font-semibold text-sm">${bill.customerName || `बिल #${bill.id}`}</h4><p class="text-xs" style="color:var(--text-light)">${billDate.toLocaleTimeString('hi-IN', {hour: '2-digit', minute: '2-digit'})}</p></div><div class="text-right"><p class="font-bold secondary-text text-md">₹${bill.total.toFixed(2)}</p></div></div><div id="billDetails_${bill.id}" class="hidden mt-2 pt-2 border-t" style="border-color: var(--border-color);"><div class="text-sm space-y-1 p-2 rounded-lg" style="background-color: color-mix(in srgb, var(--text) 3%, transparent);">${billDetailsHtml}<div class="mt-2 pt-2 border-t text-center flex justify-center gap-2" style="border-color: var(--border-color);"><button onclick="handleDeleteHistoryItem(event, '${bill.id}')" class="bg-red-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-red-600 transition-colors"><span data-lang-key="btn_delete">डिलीट</span></button><button onclick="printOldBill(event, '${bill.id}')" class="bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors"><span data-lang-key="btn_download">प्रिंट/PDF</span></button></div></div></div></div>`; }); historyDiv.innerHTML = finalHtml; updateDashboardStats(); }
         function toggleBillDetails(billId) { const detailsDiv = document.getElementById(`billDetails_${billId}`); if (detailsDiv) detailsDiv.classList.toggle('hidden'); }
         function exportData() { toggleMenu(); const data = { storeName, products, billHistory, currentTheme, notes, exportDate: new Date().toISOString() }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], {type: 'application/json'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `${storeName}_backup_${new Date().toISOString().split('T')[0]}.json`; link.click(); showToast('✅ डेटा एक्सपोर्ट हो गया!', 'success'); }
-        function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); showConfirmModal('📥 डेटा इम्पोर्ट करें?', 'क्या आप वाकई डेटा इम्पोर्ट करना चाहते हैं? यह मौजूदा डेटा को बदल देगा।', () => { if (data.storeName) storeName = data.storeName; if (data.products) products = data.products; if (data.billHistory) billHistory = data.billHistory; if (data.currentTheme) currentTheme = data.currentTheme; if (data.notes) notes = data.notes; document.getElementById('storeName').textContent = storeName; applyTheme(currentTheme); searchAndSortProducts(); filterAndDisplayHistory(); showToast('✅ डेटा सफलतापूर्वक इम्पोर्ट हो गया!', 'success'); }, 'secondary-bg');} catch (error) { showToast('❌ गलत फाइल फॉर्मेट!', 'error'); } }; reader.readAsText(file); event.target.value = ''; }
+       function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            showConfirmModal(
+                '📥 डेटा इम्पोर्ट करें?',
+                'यह आपके Firebase में मौजूद डेटा को इस फ़ाइल के डेटा से बदल देगा। क्या आप निश्चित हैं?',
+                () => {
+                    if (!db) {
+                        showToast('❌ Firebase कनेक्ट नहीं है!', 'error');
+                        return;
+                    }
+
+                    // --- नया Firebase अपलोड लॉजिक ---
+                    // 1. प्रोडक्ट्स के लिए एक बैच बनाएं
+                    const productsBatch = db.batch();
+                    if (data.products) {
+                        console.log(`Importing ${Object.keys(data.products).length} products...`);
+                        Object.keys(data.products).forEach(productId => {
+                            const productData = data.products[productId];
+                            // सुनिश्चित करें कि id को डेटा के अंदर नहीं रखा गया है
+                            delete productData.id; 
+                            const docRef = db.collection("products").doc(productId);
+                            productsBatch.set(docRef, productData);
+                        });
+                    }
+
+                    // 2. बिल हिस्ट्री के लिए एक बैच बनाएं
+                    const historyBatch = db.batch();
+                    if (data.billHistory) {
+                        console.log(`Importing ${data.billHistory.length} bills...`);
+                        data.billHistory.forEach(bill => {
+                            // Firestore को खुद ID बनाने दें
+                            const docRef = db.collection("billHistory").doc(); 
+                            historyBatch.set(docRef, bill);
+                        });
+                    }
+
+                    // 3. दोनों बैच को एक साथ चलाएं
+                    Promise.all([productsBatch.commit(), historyBatch.commit()])
+                        .then(() => {
+                            showToast('✅ डेटा Firebase में सफलतापूर्वक इम्पोर्ट हो गया!', 'success');
+                            // UI को अपडेट करने के लिए onSnapshot खुद काम करेगा
+                        })
+                        .catch(err => {
+                            console.error("Error importing data to Firebase: ", err);
+                            showToast('❌ Firebase में डेटा इम्पोर्ट करते समय त्रुटि हुई!', 'error');
+                        });
+                    // --- अंत ---
+                },
+                'secondary-bg'
+            );
+        } catch (error) {
+            showToast('❌ गलत फाइल फॉर्मेट!', 'error');
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // फाइल इनपुट को रीसेट करें
+}
         function closeNotesModal() { toggleBodyScroll(false); document.getElementById('notesModal').classList.add('hidden'); }
         function saveNotes() { notes = document.getElementById('notesText').value; localStorage.setItem('notes', notes); if(history.state.modal === 'notes') history.back(); else closeNotesModal(); showToast('📝 नोट्स सेव हो गए!', 'success'); }
         function showNotesModal() { toggleBodyScroll(true); toggleMenu(); document.getElementById('notesText').value = notes; document.getElementById('notesModal').classList.remove('hidden'); history.pushState({ modal: 'notes' }, '', location.href); }
