@@ -590,127 +590,75 @@
         }
 
 
-        document.addEventListener('DOMContentLoaded', function() { 
-            // --- Firebase Authentication और Data Loading ---
+    // ✅ यह सही कोड है, इसे पेस्ट करें ✅
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. सबसे पहले थीम सेट करें
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        applyTheme(savedTheme);
+    } else {
+        applyTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+
+    // 2. Firebase Authentication और Data Loading का इंतज़ार करें
     auth.onAuthStateChanged(async (user) => {
         if (user) {
-            // यूज़र लॉग इन है
+            // यूज़र लॉग इन है, अब डेटा लोड करें
             userId = user.uid;
-            await loadDataFromFirebase(); 
-        }
-            
-         else {
+            await loadDataFromFirebase();
+
+            // --- महत्वपूर्ण: डेटा लोड होने के बाद ही ऐप को शुरू करें ---
+            initializeApplication();
+
+        } else {
             // कोई यूज़र लॉग इन नहीं है, तो एनोनिमस रूप से साइन इन करें
             auth.signInAnonymously().catch((error) => {
                 console.error("Anonymous sign-in failed:", error);
+                showToast('❌ कनेक्शन फेल हो गया', 'error');
             });
         }
     });
-            async function loadDataFromFirebase() {
-    if (!userId) return;
 
-    const userDocRef = db.collection('userData').doc(userId);
-    try {
-        const doc = await userDocRef.get();
-        if (doc.exists) {
-            const data = doc.data();
-            products = data.products || {};
-            billHistory = data.billHistory || [];
-            storeName = data.storeName || 'मेरा स्टोर';
-            notes = data.notes || '';
-            console.log("Data loaded from Firebase.");
-        } else {
-            // यह एक नया यूज़र है, कोई डेटा मौजूद नहीं है
-            console.log("New user, no data found in Firebase.");
-        }
-    } catch (error) {
-        console.error("Error loading data from Firebase: ", error);
-        showToast('❌ डेटा लोड नहीं हो सका!', 'error');
-    }
-}
-            function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            showConfirmModal('📥 डेटा इम्पोर्ट करें?', 'क्या आप वाकई डेटा इम्पोर्ट करना चाहते हैं? यह मौजूदा डेटा को बदल देगा।', () => {
-                if (data.storeName) storeName = data.storeName;
-                if (data.products) products = data.products;
-                if (data.billHistory) billHistory = data.billHistory;
-                if (data.notes) notes = data.notes;
-                
-                // UI को अपडेट करें
-                document.getElementById('storeName').textContent = storeName;
-                document.getElementById('mobileStoreName').textContent = storeName;
-                searchAndSortProducts();
-                filterAndDisplayHistory();
+    function initializeApplication() {
+        // 3. डेटा आ चुका है, अब UI को अपडेट करें
+        document.getElementById('storeName').textContent = storeName;
+        document.getElementById('mobileStoreName').textContent = storeName;
 
-                // इम्पोर्ट किए गए डेटा को Firebase में सेव करें
-                saveDataToFirebase().then(() => {
-                    showToast('✅ डेटा सफलतापूर्वक इम्पोर्ट और सिंक हो गया!', 'success');
-                });
-                
-            }, 'secondary-bg');
-        } catch (error) {
-            showToast('❌ गलत फाइल फॉर्मेट!', 'error');
-        }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
-}
-            // Theme initialization
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) {
-                applyTheme(savedTheme);
-            } else {
-                // Apply device theme by default
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    applyTheme('dark');
-                } else {
-                    applyTheme('light');
-                }
-            }
-            
-            document.getElementById('storeName').textContent = storeName; 
-            document.getElementById('mobileStoreName').textContent = storeName;
-            
-            setLanguage(currentLanguage); 
-            searchAndSortProducts(); 
-            filterAndDisplayHistory(); 
-            updateDashboardStats(); 
-            autoSave(); 
-            history.replaceState({ section: 'home' }, '', '#home'); 
-            window.addEventListener('popstate', handleBackButton); 
-            
-            const initialSection = location.hash.substring(1) || 'home'; 
-            showSection(initialSection, false); 
-            
-            document.getElementById('dashboardHeader').addEventListener('click', () => {
-                document.getElementById('statsContainer').classList.toggle('hidden');
-                document.getElementById('dashboardToggleIcon').classList.toggle('rotate-180');
-            });
+        // 4. भाषा और बाकी UI सेट करें
+        setLanguage(currentLanguage);
+        searchAndSortProducts();
+        filterAndDisplayHistory();
+        updateDashboardStats();
 
-            document.getElementById('productsList').addEventListener('click', handleProductListActions);
+        // 5. ऐप की हिस्ट्री और नेविगेशन सेट करें
+        history.replaceState({ section: 'home' }, '', '#home');
+        window.addEventListener('popstate', handleBackButton);
+        const initialSection = location.hash.substring(1) || 'home';
+        showSection(initialSection, false);
 
-            document.getElementById('paymentTypeCashBtn').addEventListener('click', () => handlePaymentTypeSelection('cash'));
-            document.getElementById('paymentTypeCreditBtn').addEventListener('click', () => handlePaymentTypeSelection('credit'));
-            document.getElementById('paymentTypeCancelBtn').addEventListener('click', closePaymentTypeModal);
-
-            document.getElementById('customerName').addEventListener('input', showCustomerSuggestions);
-            document.addEventListener('click', (e) => {
-                if (!document.getElementById('customerName').contains(e.target)) {
-                    document.getElementById('customerNameSuggestions').classList.add('hidden');
-                }
-            });
-
-
-            function setupSearchClear(inputId, buttonId, callback) { const input = document.getElementById(inputId); const button = document.getElementById(buttonId); if (!input || !button) return; input.addEventListener('input', () => { button.classList.toggle('hidden', !input.value); }); button.addEventListener('click', () => { input.value = ''; input.dispatchEvent(new Event('input')); input.focus(); if (callback) callback(); }); } 
-            setupSearchClear('storeSearchInput', 'clearStoreSearch', debouncedSearch); 
-            setupSearchClear('searchProduct', 'clearShoppingSearch', () => searchProducts('')); 
-            setupSearchClear('historySearchInput', 'clearHistorySearch', filterAndDisplayHistory); 
+        // 6. बाकी के इवेंट लिस्नर जोड़ें
+        document.getElementById('dashboardHeader').addEventListener('click', () => {
+            document.getElementById('statsContainer').classList.toggle('hidden');
+            document.getElementById('dashboardToggleIcon').classList.toggle('rotate-180');
         });
+        document.getElementById('productsList').addEventListener('click', handleProductListActions);
+        document.getElementById('paymentTypeCashBtn').addEventListener('click', () => handlePaymentTypeSelection('cash'));
+        document.getElementById('paymentTypeCreditBtn').addEventListener('click', () => handlePaymentTypeSelection('credit'));
+        document.getElementById('paymentTypeCancelBtn').addEventListener('click', closePaymentTypeModal);
+        document.getElementById('customerName').addEventListener('input', showCustomerSuggestions);
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('customerName').contains(e.target)) {
+                document.getElementById('customerNameSuggestions').classList.add('hidden');
+            }
+        });
+
+        function setupSearchClear(inputId, buttonId, callback) { const input = document.getElementById(inputId); const button = document.getElementById(buttonId); if (!input || !button) return; input.addEventListener('input', () => { button.classList.toggle('hidden', !input.value); }); button.addEventListener('click', () => { input.value = ''; input.dispatchEvent(new Event('input')); input.focus(); if (callback) callback(); }); }
+        setupSearchClear('storeSearchInput', 'clearStoreSearch', debouncedSearch);
+        setupSearchClear('searchProduct', 'clearShoppingSearch', () => searchProducts(''));
+        setupSearchClear('historySearchInput', 'clearHistorySearch', filterAndDisplayHistory);
+    }
+});
         
         function updateThemeColorMeta() {
             setTimeout(() => {
