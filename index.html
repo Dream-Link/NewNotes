@@ -484,836 +484,294 @@
         </div>
     </div>
     
-    <script>
-        // Global variables and translations
-      
-        let billItems = [];
-        let currentEditingProduct = null;
-        let html5QrCode = null;
-        let isScanning = false;
-        let flashlightEnabled = false;
-        let currentSection = 'home';
-        let currentScanningSection = null;
-        let currentLanguage = localStorage.getItem('language') || 'hi';
-        let currentCameraTrack = null;
-        let storeView = localStorage.getItem('storeView') || 'list';
-        let isStoreEditMode = false;
-        let currentBillAction = null; // 'save' or 'print'
-            // Global variables and translations
-    let products = {}; // इसे खाली ऑब्जेक्ट से शुरू करें
-    let billHistory = []; // इसे खाली ऐरे से शुरू करें
+   <script>
+    // Global variables
+    let products = {};
+    let billHistory = [];
     let storeName = 'मेरा स्टोर';
     let notes = '';
+    let billItems = [];
+    let currentEditingProduct = null;
+    let html5QrCode = null;
+    let isScanning = false;
+    let flashlightEnabled = false;
+    let currentSection = 'home';
+    let currentScanningSection = null;
+    let currentLanguage = localStorage.getItem('language') || 'hi';
+    let currentCameraTrack = null;
+    let storeView = localStorage.getItem('storeView') || 'list';
+    let isStoreEditMode = false;
+    let currentBillAction = null;
+    let userId = null;
 
-    let userId = null; // यूज़र की ID स्टोर करने के लिए नया वेरिएबल
+    // --- Firebase Initialization ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDz15Hn7COJQ9SGIfEDD8M1dvtJMrDBh4I",
+        authDomain: "smart-store-2dc47.firebaseapp.com",
+        projectId: "smart-store-2dc47",
+        storageBucket: "smart-store-2dc47.firebasestorage.app",
+        messagingSenderId: "406021554382",
+        appId: "1:406021554382:web:e3d9cc701bdaf6d93f909f",
+        measurementId: "G-WFEPQVLQMY"
+    };
 
-    // --- यहाँ Firebase को Initialize करें ---
-  const firebaseConfig = {
-  apiKey: "AIzaSyDz15Hn7COJQ9SGIfEDD8M1dvtJMrDBh4I",
-  authDomain: "smart-store-2dc47.firebaseapp.com",
-  projectId: "smart-store-2dc47",
-  storageBucket: "smart-store-2dc47.firebasestorage.app",
-  messagingSenderId: "406021554382",
-  appId: "1:406021554382:web:e3d9cc701bdaf6d93f909f",
-  measurementId: "G-WFEPQVLQMY"
-};
-     
-
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore(); // Firestore डेटाबेस का इंस्टेंस
-    const auth = firebase.auth();   // Authentication का इंस्टेंस
+    const db = firebase.firestore();
+    const auth = firebase.auth();
 
-        const unitTextMap = { 'piece': 'नग', 'packet': 'पैकेट', 'gram': 'ग्राम', 'kg': 'कि.ग्रा.', 'litre': 'लीटर', 'ml': 'मि.ली.', 'dozen': 'दर्जन', 'box': 'बॉक्स' };
-        const productDatabase = { '8901030895566': { name: 'मैगी नूडल्स', price: 12, details: '2 मिनट नूडल्स', fillingQuantity: 1, unit: 'packet' }, '8901030895573': { name: 'लेज चिप्स', price: 20, details: 'आलू के चिप्स', fillingQuantity: 50, unit: 'gram' }, '8901030895580': { name: 'कोका कोला', price: 40, details: '600ml बोतल', fillingQuantity: 600, unit: 'ml'}, };
-        const translations = { 'hi': { 'tab_home': 'होम', 'tab_store': 'स्टोर', 'tab_shopping': 'शॉपिंग', 'tab_history': 'हिस्ट्री', 'menu_rename_store': 'स्टोर का नाम बदलें', 'menu_change_language': 'भाषा बदलें / Language', 'menu_notes': 'नोट्स', 'menu_export': 'डेटा एक्सपोर्ट करें', 'menu_import': 'डेटा इम्पोर्ट करें', 'menu_print_products': 'सभी प्रोडक्ट्स प्रिंट करें', 'dashboard_title': 'डैशबोर्ड', 'dashboard_total_products': 'कुल प्रोडक्ट्स', 'dashboard_saved_bills': 'सेव बिल', 'dashboard_add_product': 'नया प्रोडक्ट जोड़ें', 'dashboard_create_bill': 'नया बिल बनाएं', 'dashboard_scanner_title': 'त्वरित स्कैन', 'dashboard_scanner_btn': 'स्कैन शुरू करें', 'scanner_flash': 'फ्लैश', 'scan_result_not_found': 'प्रोडक्ट स्टोर में नहीं मिला!', 'scan_add_as_new': 'इसे नए प्रोडक्ट के रूप में जोड़ें', 'scan_add_to_bill': 'बिल में जोड़ें', 'scan_result_title': 'स्कैन का परिणाम', 'store_title_emoji': '📦', 'store_title': 'स्टोर मैनेजमेंट', 'placeholder_search_product': 'प्रोडक्ट खोजें...', 'sort_newest': 'सबसे नया', 'sort_oldest': 'सबसे पुराना', 'sort_name_az': 'नाम (A-Z)', 'sort_name_za': 'नाम (Z-A)', 'sort_price_high': 'कीमत (महंगा)', 'sort_price_low': 'कीमत (सस्ता)', 'btn_edit_mode': 'एडिट मोड', 'billing_add_product': 'प्रोडक्ट जोड़ें', 'billing_current_bill_emoji': '🛒', 'billing_current_bill': 'वर्तमान बिल', 'placeholder_customer_name': 'ग्राहक का नाम', 'billing_total_amount': 'कुल राशि:', 'customer_name_required': '❌ कृपया ग्राहक का नाम दर्ज करें!', 'history_title_emoji': '📋', 'history_title': 'बिल हिस्ट्री', 'placeholder_search_history': 'ग्राहक या प्रोडक्ट से खोजें...', 'modal_add_product_emoji': '✨', 'modal_add_product_title': 'नया प्रोडक्ट जोड़ें', 'scanner_stop': 'स्कैन बंद करें', 'form_barcode': 'बारकोड', 'placeholder_product_id': 'प्रोडक्ट ID', 'form_product_name': 'प्रोडक्ट का नाम', 'placeholder_product_name': 'जैसे, मैगी नूडल्स', 'form_quantity': 'मात्रा', 'placeholder_quantity': 'जैसे, 100', 'form_unit': 'यूनिट', 'unit_piece': 'नग (piece)', 'unit_packet': 'पैकेट (packet)', 'unit_gram': 'ग्राम (gram)', 'unit_kg': 'कि.ग्रा. (kg)', 'unit_litre': 'लीटर (litre)', 'unit_ml': 'मि.ली. (ml)', 'unit_dozen': 'दर्जन (dozen)', 'unit_box': 'बॉक्स (box)', 'form_price': 'कीमत (₹)', 'placeholder_price': 'जैसे, 12', 'form_details': 'विवरण', 'placeholder_details': 'जैसे, 2 मिनट नूडल्स', 'btn_close': 'बंद करें', 'btn_add': 'जोड़ें', 'btn_clear': 'क्लियर', 'btn_download': 'प्रिंट/PDF', 'btn_save': 'सेव', 'btn_cancel': 'कैंसल', 'btn_update': 'अपडेट', 'btn_confirm': 'कन्फर्म', 'btn_delete': 'डिलीट', 'btn_edit': 'एडिट', 'modal_edit_product_emoji': '✏️', 'modal_edit_product_title': 'प्रोडक्ट एडिट करें', 'notes_title': '📝 नोट्स', 'placeholder_notes': 'यहाँ अपने नोट्स लिखें...', 'text_total': 'कुल', 'btn_load_bill': 'बिल लोड करें', 'btn_rename': 'नाम बदलें', 'confirm_load_bill_title': 'बिल लोड करें?', 'confirm_load_bill_message': 'यह वर्तमान बिल की जगह ले लेगा। क्या आप जारी रखना चाहते हैं?', 'rename_customer_title': 'ग्राहक का नाम बदलें', 'rename_customer_message': 'ग्राहक के लिए नया नाम दर्ज करें:', 'bill_loaded_success': '✅ बिल सफलतापूर्वक लोड हो गया!', 'customer_renamed_success': '✅ ग्राहक का नाम अपडेट हो गया!', }, 'en': { 'tab_home': 'Home', 'tab_store': 'Store', 'tab_shopping': 'Shopping', 'tab_history': 'History', 'menu_rename_store': 'Rename Store', 'menu_change_language': 'भाषा बदलें / Language', 'menu_notes': 'Notes', 'menu_export': 'Export Data', 'menu_import': 'Import Data', 'menu_print_products': 'Print All Products', 'dashboard_title': 'Dashboard', 'dashboard_total_products': 'Total Products', 'dashboard_saved_bills': 'Saved Bills', 'dashboard_add_product': 'Add New Product', 'dashboard_create_bill': 'Create New Bill', 'dashboard_scanner_title': 'Quick Scan', 'dashboard_scanner_btn': 'Start Scan', 'scanner_flash': 'Flash', 'scan_result_not_found': 'Product not found in store!', 'scan_add_as_new': 'Add as a new product', 'scan_add_to_bill': 'Add to Bill', 'scan_result_title': 'Scan Result', 'store_title_emoji': '📦', 'store_title': 'Store Management', 'placeholder_search_product': 'Search product...', 'sort_newest': 'Newest', 'sort_oldest': 'Oldest', 'sort_name_az': 'Name (A-Z)', 'sort_name_za': 'Name (Z-A)', 'sort_price_high': 'Price (High)', 'sort_price_low': 'Price (Low)', 'btn_edit_mode': 'Edit Mode', 'billing_add_product': 'Add Product', 'billing_current_bill_emoji': '🛒', 'billing_current_bill': 'Current Bill', 'placeholder_customer_name': 'Customer name', 'billing_total_amount': 'Total Amount:', 'customer_name_required': '❌ Please enter the customer name!', 'history_title_emoji': '📋', 'history_title': 'Bill History', 'placeholder_search_history': 'Search by customer or product...', 'modal_add_product_emoji': '✨', 'modal_add_product_title': 'Add New Product', 'scanner_stop': 'Stop Scan', 'form_barcode': 'Barcode', 'placeholder_product_id': 'Product ID', 'form_product_name': 'Product Name', 'placeholder_product_name': 'e.g., Maggi Noodles', 'form_quantity': 'Quantity', 'placeholder_quantity': 'e.g., 100', 'form_unit': 'Unit', 'unit_piece': 'Piece', 'unit_packet': 'Packet', 'unit_gram': 'Gram', 'unit_kg': 'Kg', 'unit_litre': 'Litre', 'unit_ml': 'ml', 'unit_dozen': 'Dozen', 'unit_box': 'Box', 'form_price': 'Price (₹)', 'placeholder_price': 'e.g., 12', 'form_details': 'Details', 'placeholder_details': 'e.g., 2-minute noodles', 'btn_close': 'Close', 'btn_add': 'Add', 'btn_clear': 'Clear', 'btn_download': 'Print/PDF', 'btn_save': 'Save', 'btn_cancel': 'Cancel', 'btn_update': 'Update', 'btn_confirm': 'Confirm', 'btn_delete': 'Delete', 'btn_edit': 'Edit', 'modal_edit_product_emoji': '✏️', 'modal_edit_product_title': 'Edit Product', 'notes_title': '📝 Notes', 'placeholder_notes': 'Write your notes here...', 'text_total': 'Total', 'btn_load_bill': 'Load Bill', 'btn_rename': 'Rename', 'confirm_load_bill_title': 'Load Bill?', 'confirm_load_bill_message': 'This will replace the current bill. Do you want to continue?', 'rename_customer_title': 'Rename Customer', 'rename_customer_message': 'Enter the new name for the customer:', 'bill_loaded_success': '✅ Bill loaded successfully!', 'customer_renamed_success': '✅ Customer name updated!', } };
+    // --- Translations and Static Data ---
+    const unitTextMap = { 'piece': 'नग', 'packet': 'पैकेट', 'gram': 'ग्राम', 'kg': 'कि.ग्रा.', 'litre': 'लीटर', 'ml': 'मि.ली.', 'dozen': 'दर्जन', 'box': 'बॉक्स' };
+    const productDatabase = { '8901030895566': { name: 'मैगी नूडल्स', price: 12, details: '2 मिनट नूडल्स', fillingQuantity: 1, unit: 'packet' }, '8901030895573': { name: 'लेज चिप्स', price: 20, details: 'आलू के चिप्स', fillingQuantity: 50, unit: 'gram' }, '8901030895580': { name: 'कोका कोला', price: 40, details: '600ml बोतल', fillingQuantity: 600, unit: 'ml'}, };
+    const translations = { 'hi': { 'tab_home': 'होम', 'tab_store': 'स्टोर', 'tab_shopping': 'शॉपिंग', 'tab_history': 'हिस्ट्री', 'menu_rename_store': 'स्टोर का नाम बदलें', 'menu_change_language': 'भाषा बदलें / Language', 'menu_notes': 'नोट्स', 'menu_export': 'डेटा एक्सपोर्ट करें', 'menu_import': 'डेटा इम्पोर्ट करें', 'menu_print_products': 'सभी प्रोडक्ट्स प्रिंट करें', 'dashboard_title': 'डैशबोर्ड', 'dashboard_total_products': 'कुल प्रोडक्ट्स', 'dashboard_saved_bills': 'सेव बिल', 'dashboard_add_product': 'नया प्रोडक्ट जोड़ें', 'dashboard_create_bill': 'नया बिल बनाएं', 'dashboard_scanner_title': 'त्वरित स्कैन', 'dashboard_scanner_btn': 'स्कैन शुरू करें', 'scanner_flash': 'फ्लैश', 'scan_result_not_found': 'प्रोडक्ट स्टोर में नहीं मिला!', 'scan_add_as_new': 'इसे नए प्रोडक्ट के रूप में जोड़ें', 'scan_add_to_bill': 'बिल में जोड़ें', 'scan_result_title': 'स्कैन का परिणाम', 'store_title_emoji': '📦', 'store_title': 'स्टोर मैनेजमेंट', 'placeholder_search_product': 'प्रोडक्ट खोजें...', 'sort_newest': 'सबसे नया', 'sort_oldest': 'सबसे पुराना', 'sort_name_az': 'नाम (A-Z)', 'sort_name_za': 'नाम (Z-A)', 'sort_price_high': 'कीमत (महंगा)', 'sort_price_low': 'कीमत (सस्ता)', 'btn_edit_mode': 'एडिट मोड', 'billing_add_product': 'प्रोडक्ट जोड़ें', 'billing_current_bill_emoji': '🛒', 'billing_current_bill': 'वर्तमान बिल', 'placeholder_customer_name': 'ग्राहक का नाम', 'billing_total_amount': 'कुल राशि:', 'customer_name_required': '❌ कृपया ग्राहक का नाम दर्ज करें!', 'history_title_emoji': '📋', 'history_title': 'बिल हिस्ट्री', 'placeholder_search_history': 'ग्राहक या प्रोडक्ट से खोजें...', 'modal_add_product_emoji': '✨', 'modal_add_product_title': 'नया प्रोडक्ट जोड़ें', 'scanner_stop': 'स्कैन बंद करें', 'form_barcode': 'बारकोड', 'placeholder_product_id': 'प्रोडक्ट ID', 'form_product_name': 'प्रोडक्ट का नाम', 'placeholder_product_name': 'जैसे, मैगी नूडल्स', 'form_quantity': 'मात्रा', 'placeholder_quantity': 'जैसे, 100', 'form_unit': 'यूनिट', 'unit_piece': 'नग (piece)', 'unit_packet': 'पैकेट (packet)', 'unit_gram': 'ग्राम (gram)', 'unit_kg': 'कि.ग्रा. (kg)', 'unit_litre': 'लीटर (litre)', 'unit_ml': 'मि.ली. (ml)', 'unit_dozen': 'दर्जन (dozen)', 'unit_box': 'बॉक्स (box)', 'form_price': 'कीमत (₹)', 'placeholder_price': 'जैसे, 12', 'form_details': 'विवरण', 'placeholder_details': 'जैसे, 2 मिनट नूडल्स', 'btn_close': 'बंद करें', 'btn_add': 'जोड़ें', 'btn_clear': 'क्लियर', 'btn_download': 'प्रिंट/PDF', 'btn_save': 'सेव', 'btn_cancel': 'कैंसल', 'btn_update': 'अपडेट', 'btn_confirm': 'कन्फर्म', 'btn_delete': 'डिलीट', 'btn_edit': 'एडिट', 'modal_edit_product_emoji': '✏️', 'modal_edit_product_title': 'प्रोडक्ट एडिट करें', 'notes_title': '📝 नोट्स', 'placeholder_notes': 'यहाँ अपने नोट्स लिखें...', 'text_total': 'कुल', 'btn_load_bill': 'बिल लोड करें', 'btn_rename': 'नाम बदलें', 'confirm_load_bill_title': 'बिल लोड करें?', 'confirm_load_bill_message': 'यह वर्तमान बिल की जगह ले लेगा। क्या आप जारी रखना चाहते हैं?', 'rename_customer_title': 'ग्राहक का नाम बदलें', 'rename_customer_message': 'ग्राहक के लिए नया नाम दर्ज करें:', 'bill_loaded_success': '✅ बिल सफलतापूर्वक लोड हो गया!', 'customer_renamed_success': '✅ ग्राहक का नाम अपडेट हो गया!', }, 'en': { 'tab_home': 'Home', 'tab_store': 'Store', 'tab_shopping': 'Shopping', 'tab_history': 'History', 'menu_rename_store': 'Rename Store', 'menu_change_language': 'भाषा बदलें / Language', 'menu_notes': 'Notes', 'menu_export': 'Export Data', 'menu_import': 'Import Data', 'menu_print_products': 'Print All Products', 'dashboard_title': 'Dashboard', 'dashboard_total_products': 'Total Products', 'dashboard_saved_bills': 'Saved Bills', 'dashboard_add_product': 'Add New Product', 'dashboard_create_bill': 'Create New Bill', 'dashboard_scanner_title': 'Quick Scan', 'dashboard_scanner_btn': 'Start Scan', 'scanner_flash': 'Flash', 'scan_result_not_found': 'Product not found in store!', 'scan_add_as_new': 'Add as a new product', 'scan_add_to_bill': 'Add to Bill', 'scan_result_title': 'Scan Result', 'store_title_emoji': '📦', 'store_title': 'Store Management', 'placeholder_search_product': 'Search product...', 'sort_newest': 'Newest', 'sort_oldest': 'Oldest', 'sort_name_az': 'Name (A-Z)', 'sort_name_za': 'Name (Z-A)', 'sort_price_high': 'Price (High)', 'sort_price_low': 'Price (Low)', 'btn_edit_mode': 'Edit Mode', 'billing_add_product': 'Add Product', 'billing_current_bill_emoji': '🛒', 'billing_current_bill': 'Current Bill', 'placeholder_customer_name': 'Customer name', 'billing_total_amount': 'Total Amount:', 'customer_name_required': '❌ Please enter the customer name!', 'history_title_emoji': '📋', 'history_title': 'Bill History', 'placeholder_search_history': 'Search by customer or product...', 'modal_add_product_emoji': '✨', 'modal_add_product_title': 'Add New Product', 'scanner_stop': 'Stop Scan', 'form_barcode': 'Barcode', 'placeholder_product_id': 'Product ID', 'form_product_name': 'Product Name', 'placeholder_product_name': 'e.g., Maggi Noodles', 'form_quantity': 'Quantity', 'placeholder_quantity': 'e.g., 100', 'form_unit': 'Unit', 'unit_piece': 'Piece', 'unit_packet': 'Packet', 'unit_gram': 'Gram', 'unit_kg': 'Kg', 'unit_litre': 'Litre', 'unit_ml': 'ml', 'unit_dozen': 'Dozen', 'unit_box': 'Box', 'form_price': 'Price (₹)', 'placeholder_price': 'e.g., 12', 'form_details': 'Details', 'placeholder_details': 'e.g., 2-minute noodles', 'btn_close': 'Close', 'btn_add': 'Add', 'btn_clear': 'Clear', 'btn_download': 'Print/PDF', 'btn_save': 'Save', 'btn_cancel': 'Cancel', 'btn_update': 'Update', 'btn_confirm': 'Confirm', 'btn_delete': 'Delete', 'btn_edit': 'Edit', 'modal_edit_product_emoji': '✏️', 'modal_edit_product_title': 'Edit Product', 'notes_title': '📝 Notes', 'placeholder_notes': 'Write your notes here...', 'text_total': 'Total', 'btn_load_bill': 'Load Bill', 'btn_rename': 'Rename', 'confirm_load_bill_title': 'Load Bill?', 'confirm_load_bill_message': 'This will replace the current bill. Do you want to continue?', 'rename_customer_title': 'Rename Customer', 'rename_customer_message': 'Enter the new name for the customer:', 'bill_loaded_success': '✅ Bill loaded successfully!', 'customer_renamed_success': '✅ Customer name updated!', } };
 
-        // --- HINGLISH SEARCH HELPER ---
-        function transliterateHinglish(text) {
-            const map = {
-                'a': 'अ', 'aa': 'आ', 'i': 'इ', 'ee': 'ई', 'u': 'उ', 'oo': 'ऊ', 'ri': 'ऋ', 'e': 'ए', 'ai': 'ऐ', 'o': 'ओ', 'au': 'औ',
-                'k': 'क', 'kh': 'ख', 'g': 'ग', 'gh': 'घ', 'ch': 'च', 'chh': 'छ', 'j': 'ज', 'jh': 'झ', 't': 'ट', 'th': 'ठ', 'd': 'ड', 'dh': 'ढ', 'n': 'न',
-                'p': 'प', 'ph': 'फ', 'f': 'फ', 'b': 'ब', 'bh': 'भ', 'm': 'म', 'y': 'य', 'r': 'र', 'l': 'ल', 'v': 'व', 'w': 'व', 'sh': 'श', 's': 'स', 'h': 'ह',
-                'gy': 'ज्ञ', 'tr': 'त्र', 'ksh': 'क्ष', 'shree': 'श्री',
-                'chini': 'चीनी', 'namak': 'नमक', 'tel': 'तेल', 'chai': 'चाय', 'doodh': 'दूध', 'pani': 'पानी', 'biscuit': 'बिस्किट', 'dal': 'दाल'
-            };
-            let result = '';
-            let lowerText = text.toLowerCase();
-            
-            if (map[lowerText]) {
-                return map[lowerText];
-            }
+    // --- HINGLISH SEARCH HELPER ---
+    function transliterateHinglish(text) { const map = { 'a': 'अ', 'aa': 'आ', 'i': 'इ', 'ee': 'ई', 'u': 'उ', 'oo': 'ऊ', 'ri': 'ऋ', 'e': 'ए', 'ai': 'ऐ', 'o': 'ओ', 'au': 'औ', 'k': 'क', 'kh': 'ख', 'g': 'ग', 'gh': 'घ', 'ch': 'च', 'chh': 'छ', 'j': 'ज', 'jh': 'झ', 't': 'ट', 'th': 'ठ', 'd': 'ड', 'dh': 'ढ', 'n': 'न', 'p': 'प', 'ph': 'फ', 'f': 'फ', 'b': 'ब', 'bh': 'भ', 'm': 'म', 'y': 'य', 'r': 'र', 'l': 'ल', 'v': 'व', 'w': 'व', 'sh': 'श', 's': 'स', 'h': 'ह', 'gy': 'ज्ञ', 'tr': 'त्र', 'ksh': 'क्ष', 'shree': 'श्री', 'chini': 'चीनी', 'namak': 'नमक', 'tel': 'तेल', 'chai': 'चाय', 'doodh': 'दूध', 'pani': 'पानी', 'biscuit': 'बिस्किट', 'dal': 'दाल' }; let result = ''; let lowerText = text.toLowerCase(); if (map[lowerText]) { return map[lowerText]; } for (let i = 0; i < lowerText.length; i++) { let found = false; for (let len = 4; len > 0; len--) { if (i + len <= lowerText.length) { const sub = lowerText.substring(i, i + len); if (map[sub]) { result += map[sub]; i += len - 1; found = true; break; } } } if (!found) { result += lowerText[i]; } } return result; }
 
-            for (let i = 0; i < lowerText.length; i++) {
-                let found = false;
-                for (let len = 4; len > 0; len--) {
-                    if (i + len <= lowerText.length) {
-                        const sub = lowerText.substring(i, i + len);
-                        if (map[sub]) {
-                            result += map[sub];
-                            i += len - 1;
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                if (!found) {
-                    result += lowerText[i];
-                }
-            }
-            return result;
-        }
-
-        // Utility Functions
-        function toggleBodyScroll(lock) { document.body.style.overflow = lock ? 'hidden' : ''; }
-        function triggerHapticFeedback(duration = 50) { if (navigator.vibrate) { try { navigator.vibrate(duration); } catch (e) {} } }
-        function showConfirmModal(title, message, onConfirm, confirmButtonClass = 'bg-red-500') { toggleBodyScroll(true); const modal = document.getElementById('confirmModal'); document.getElementById('confirmModalTitle').textContent = title; document.getElementById('confirmModalMessage').textContent = message; const confirmBtn = document.getElementById('confirmModalConfirm'); const cancelBtn = document.getElementById('confirmModalCancel'); confirmBtn.className = `text-white py-2 px-3 rounded-lg font-semibold modern-btn text-sm ${confirmButtonClass}`; const confirmHandler = () => { onConfirm(); modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cancelHandler = () => { modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cleanup = () => { confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); }; confirmBtn.addEventListener('click', confirmHandler); cancelBtn.addEventListener('click', cancelHandler); modal.classList.remove('hidden'); }
-        function showPromptModal(title, message, defaultValue, onConfirm) { toggleBodyScroll(true); const modal = document.getElementById('promptModal'); document.getElementById('promptModalTitle').textContent = title; document.getElementById('promptModalMessage').textContent = message; const input = document.getElementById('promptModalInput'); input.value = defaultValue; const confirmBtn = document.getElementById('promptModalConfirm'); const cancelBtn = document.getElementById('promptModalCancel'); const confirmHandler = () => { onConfirm(input.value); modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cancelHandler = () => { modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cleanup = () => { confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); }; confirmBtn.addEventListener('click', confirmHandler); cancelBtn.addEventListener('click', cancelHandler); modal.classList.remove('hidden'); input.focus(); input.select(); }
-        function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
-        
-        // --- THEME MANAGEMENT ---
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-            localStorage.setItem('theme', theme);
-            updateThemeColorMeta();
-        }
-
-        function toggleTheme() {
-            const currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            applyTheme(newTheme);
-            toggleMenu();
-        }
-
-
-    // ✅ यह सही कोड है, इसे पेस्ट करें ✅
-
-document.addEventListener('DOMContentLoaded', function() {
-    // 1. सबसे पहले थीम सेट करें
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-        applyTheme(savedTheme);
-    } else {
-        applyTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    }
-
-    // 2. Firebase Authentication और Data Loading का इंतज़ार करें
-    auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            // यूज़र लॉग इन है, अब डेटा लोड करें
-            userId = user.uid;
-            await loadDataFromFirebase();
-
-            // --- महत्वपूर्ण: डेटा लोड होने के बाद ही ऐप को शुरू करें ---
-            initializeApplication();
-
+    // --- Utility Functions ---
+    function toggleBodyScroll(lock) { document.body.style.overflow = lock ? 'hidden' : ''; }
+    function triggerHapticFeedback(duration = 50) { if (navigator.vibrate) { try { navigator.vibrate(duration); } catch (e) {} } }
+    function showToast(message, type = 'info') { const toast = document.createElement('div'); const bgColor = type === 'success' ? 'secondary-bg' : type === 'error' ? 'bg-red-500' : 'primary-bg'; toast.className = `fixed top-14 right-3 ${bgColor} text-white px-3 py-1.5 rounded-lg shadow-lg z-50 fade-in text-sm font-medium`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.remove(); }, 2000); }
+    function showConfirmModal(title, message, onConfirm, confirmButtonClass = 'bg-red-500') { toggleBodyScroll(true); const modal = document.getElementById('confirmModal'); document.getElementById('confirmModalTitle').textContent = title; document.getElementById('confirmModalMessage').textContent = message; const confirmBtn = document.getElementById('confirmModalConfirm'); const cancelBtn = document.getElementById('confirmModalCancel'); confirmBtn.className = `text-white py-2 px-3 rounded-lg font-semibold modern-btn text-sm ${confirmButtonClass}`; const confirmHandler = () => { onConfirm(); modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cancelHandler = () => { modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cleanup = () => { confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); }; confirmBtn.addEventListener('click', confirmHandler); cancelBtn.addEventListener('click', cancelHandler); modal.classList.remove('hidden'); }
+    function showPromptModal(title, message, defaultValue, onConfirm) { toggleBodyScroll(true); const modal = document.getElementById('promptModal'); document.getElementById('promptModalTitle').textContent = title; document.getElementById('promptModalMessage').textContent = message; const input = document.getElementById('promptModalInput'); input.value = defaultValue; const confirmBtn = document.getElementById('promptModalConfirm'); const cancelBtn = document.getElementById('promptModalCancel'); const confirmHandler = () => { onConfirm(input.value); modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cancelHandler = () => { modal.classList.add('hidden'); toggleBodyScroll(false); cleanup(); }; const cleanup = () => { confirmBtn.removeEventListener('click', confirmHandler); cancelBtn.removeEventListener('click', cancelHandler); }; confirmBtn.addEventListener('click', confirmHandler); cancelBtn.addEventListener('click', cancelHandler); modal.classList.remove('hidden'); input.focus(); input.select(); }
+    function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
+    
+    // --- APP INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            applyTheme(savedTheme);
         } else {
-            // कोई यूज़र लॉग इन नहीं है, तो एनोनिमस रूप से साइन इन करें
-            auth.signInAnonymously().catch((error) => {
-                console.error("Anonymous sign-in failed:", error);
-                showToast('❌ कनेक्शन फेल हो गया', 'error');
-            });
+            applyTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        }
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                userId = user.uid;
+                await loadDataFromFirebase();
+                initializeApplication();
+            } else {
+                auth.signInAnonymously().catch((error) => {
+                    console.error("Anonymous sign-in failed:", error);
+                    showToast('❌ कनेक्शन फेल हो गया', 'error');
+                });
+            }
+        });
+
+        function initializeApplication() {
+            document.getElementById('storeName').textContent = storeName;
+            document.getElementById('mobileStoreName').textContent = storeName;
+            setLanguage(currentLanguage);
+            searchAndSortProducts();
+            filterAndDisplayHistory();
+            updateDashboardStats();
+
+            history.replaceState({ section: 'home' }, '', '#home');
+            window.addEventListener('popstate', handleBackButton);
+            const initialSection = location.hash.substring(1) || 'home';
+            showSection(initialSection, false);
+
+            document.getElementById('dashboardHeader').addEventListener('click', () => { document.getElementById('statsContainer').classList.toggle('hidden'); document.getElementById('dashboardToggleIcon').classList.toggle('rotate-180'); });
+            document.getElementById('productsList').addEventListener('click', handleProductListActions);
+            document.getElementById('paymentTypeCashBtn').addEventListener('click', () => handlePaymentTypeSelection('cash'));
+            document.getElementById('paymentTypeCreditBtn').addEventListener('click', () => handlePaymentTypeSelection('credit'));
+            document.getElementById('paymentTypeCancelBtn').addEventListener('click', closePaymentTypeModal);
+            document.getElementById('customerName').addEventListener('input', showCustomerSuggestions);
+            document.addEventListener('click', (e) => { if (!document.getElementById('customerName').contains(e.target)) { document.getElementById('customerNameSuggestions').classList.add('hidden'); } });
+            
+            function setupSearchClear(inputId, buttonId, callback) { const input = document.getElementById(inputId); const button = document.getElementById(buttonId); if (!input || !button) return; input.addEventListener('input', () => { button.classList.toggle('hidden', !input.value); }); button.addEventListener('click', () => { input.value = ''; input.dispatchEvent(new Event('input')); input.focus(); if (callback) callback(); }); }
+            setupSearchClear('storeSearchInput', 'clearStoreSearch', debouncedSearch);
+            setupSearchClear('searchProduct', 'clearShoppingSearch', () => searchProducts(''));
+            setupSearchClear('historySearchInput', 'clearHistorySearch', filterAndDisplayHistory);
         }
     });
 
-    function initializeApplication() {
-        // 3. डेटा आ चुका है, अब UI को अपडेट करें
-        document.getElementById('storeName').textContent = storeName;
-        document.getElementById('mobileStoreName').textContent = storeName;
-
-        // 4. भाषा और बाकी UI सेट करें
-        setLanguage(currentLanguage);
-        searchAndSortProducts();
-        filterAndDisplayHistory();
-        updateDashboardStats();
-
-        // 5. ऐप की हिस्ट्री और नेविगेशन सेट करें
-        history.replaceState({ section: 'home' }, '', '#home');
-        window.addEventListener('popstate', handleBackButton);
-        const initialSection = location.hash.substring(1) || 'home';
-        showSection(initialSection, false);
-
-        // 6. बाकी के इवेंट लिस्नर जोड़ें
-        document.getElementById('dashboardHeader').addEventListener('click', () => {
-            document.getElementById('statsContainer').classList.toggle('hidden');
-            document.getElementById('dashboardToggleIcon').classList.toggle('rotate-180');
-        });
-        document.getElementById('productsList').addEventListener('click', handleProductListActions);
-        document.getElementById('paymentTypeCashBtn').addEventListener('click', () => handlePaymentTypeSelection('cash'));
-        document.getElementById('paymentTypeCreditBtn').addEventListener('click', () => handlePaymentTypeSelection('credit'));
-        document.getElementById('paymentTypeCancelBtn').addEventListener('click', closePaymentTypeModal);
-        document.getElementById('customerName').addEventListener('input', showCustomerSuggestions);
-        document.addEventListener('click', (e) => {
-            if (!document.getElementById('customerName').contains(e.target)) {
-                document.getElementById('customerNameSuggestions').classList.add('hidden');
-            }
-        });
-
-        function setupSearchClear(inputId, buttonId, callback) { const input = document.getElementById(inputId); const button = document.getElementById(buttonId); if (!input || !button) return; input.addEventListener('input', () => { button.classList.toggle('hidden', !input.value); }); button.addEventListener('click', () => { input.value = ''; input.dispatchEvent(new Event('input')); input.focus(); if (callback) callback(); }); }
-        setupSearchClear('storeSearchInput', 'clearStoreSearch', debouncedSearch);
-        setupSearchClear('searchProduct', 'clearShoppingSearch', () => searchProducts(''));
-        setupSearchClear('historySearchInput', 'clearHistorySearch', filterAndDisplayHistory);
+    // --- FIREBASE DATA FUNCTIONS ---
+    async function saveDataToFirebase() {
+        if (!userId) return;
+        try {
+            const userDocRef = db.collection('userData').doc(userId);
+            await userDocRef.set({
+                products: products,
+                billHistory: billHistory,
+                storeName: storeName,
+                notes: notes,
+                lastUpdated: new Date()
+            }, { merge: true });
+        } catch (error) {
+            console.error("Error saving data to Firebase: ", error);
+            showToast('❌ डेटा सिंक नहीं हो सका!', 'error');
+        }
     }
-});
-        
-        function updateThemeColorMeta() {
-            setTimeout(() => {
-                const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-                document.getElementById('theme-color-meta').setAttribute('content', primaryColor);
-            }, 50);
-        }
 
-        function updateDashboardStats() { document.getElementById('totalProductsStat').textContent = Object.keys(products).length; document.getElementById('totalBillsStat').textContent = billHistory.length; }
-        function showAddModal() { 
-            toggleBodyScroll(true);
-            document.getElementById('productBarcode').value = '';
-            document.getElementById('productManualId').value = ''; 
-            document.getElementById('productName').value = ''; 
-            document.getElementById('productPrice').value = ''; 
-            document.getElementById('productDetails').value = ''; 
-            document.getElementById('productFillingQuantity').value = '1'; 
-            document.getElementById('productUnit').value = 'piece'; 
-            document.getElementById('addProductModal').classList.remove('hidden'); 
-            history.pushState({ modal: 'add' }, '', location.href); 
-        }
-        function closeAddModal() { toggleBodyScroll(false); const modal = document.getElementById('addProductModal'); if (!modal.classList.contains('hidden')) { modal.classList.add('hidden'); if (isScanning) { stopScanning(currentScanningSection); } } }
-        function showManualAddModal() { toggleBodyScroll(true); document.getElementById('manualItemName').value = ''; document.getElementById('manualItemPrice').value = ''; document.getElementById('manualItemQuantity').value = '1'; document.getElementById('manualItemUnit').value = 'piece'; document.getElementById('manualAddModal').classList.remove('hidden'); history.pushState({ modal: 'manualAdd' }, '', location.href); }
-        function closeManualAddModal() { toggleBodyScroll(false); document.getElementById('manualAddModal').classList.add('hidden'); }
-
-       async function saveDataToFirebase() {
-    if (!userId) return; // अगर यूज़र लॉग इन नहीं है तो कुछ न करें
-
-    try {
+    async function loadDataFromFirebase() {
+        if (!userId) return;
         const userDocRef = db.collection('userData').doc(userId);
-        await userDocRef.set({
-            products: products,
-            billHistory: billHistory,
-            storeName: storeName,
-            notes: notes,
-            lastUpdated: new Date()
-        }, { merge: true }); // merge: true यह सुनिश्चित करता है कि हम पूरे डॉक्यूमेंट को ओवरराइट न करें
-    } catch (error) {
-        console.error("Error saving data to Firebase: ", error);
-        showToast('❌ डेटा सिंक नहीं हो सका!', 'error');
+        try {
+            const doc = await userDocRef.get();
+            if (doc.exists) {
+                const data = doc.data();
+                products = data.products || {};
+                billHistory = data.billHistory || [];
+                storeName = data.storeName || 'मेरा स्टोर';
+                notes = data.notes || '';
+                console.log("Data loaded from Firebase.");
+                showToast('☁️ डेटा सफलतापूर्वक सिंक हुआ!', 'success');
+            } else {
+                console.log("New user, no data found in Firebase.");
+                showToast('👋 आपका स्वागत है! डेटा सिंक हो रहा है।', 'info');
+            }
+        } catch (error) {
+            console.error("Error loading data from Firebase: ", error);
+            showToast('❌ डेटा लोड नहीं हो सका!', 'error');
+        }
     }
-}
-        async function loadDataFromFirebase() {
-    if (!userId) return;
 
-    const userDocRef = db.collection('userData').doc(userId);
-    try {
-        const doc = await userDocRef.get();
-        if (doc.exists) {
-            const data = doc.data();
-            products = data.products || {};
-            billHistory = data.billHistory || [];
-            storeName = data.storeName || 'मेरा स्टोर';
-            notes = data.notes || '';
-            console.log("Data loaded from Firebase.");
-            showToast('☁️ डेटा सफलतापूर्वक सिंक हुआ!', 'success');
-        } else {
-            console.log("New user, no data found in Firebase.");
-            showToast('👋 आपका स्वागत है! डेटा सिंक हो रहा है।', 'info');
+    // --- PRODUCT MANAGEMENT ---
+    function addProduct() {
+        const barcode = document.getElementById('productBarcode').value.trim();
+        const manualId = document.getElementById('productManualId').value.trim();
+        const name = document.getElementById('productName').value.trim();
+        const price = parseFloat(document.getElementById('productPrice').value);
+        const details = document.getElementById('productDetails').value.trim();
+        const fillingQuantity = parseFloat(document.getElementById('productFillingQuantity').value) || 1;
+        const unit = document.getElementById('productUnit').value;
+
+        if (!name || isNaN(price) || isNaN(fillingQuantity) || fillingQuantity <= 0) {
+            showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error');
+            return;
         }
-    } catch (error) {
-        console.error("Error loading data from Firebase: ", error);
-        showToast('❌ डेटा लोड नहीं हो सका!', 'error');
+        if (!manualId && !barcode) {
+            showToast('❌ कृपया बारकोड स्कैन करें या मैन्युअल ID डालें', 'error');
+            return;
+        }
+
+        const productId = manualId || barcode;
+        if (products[productId]) {
+            showToast('❌ यह मैन्युअल ID/बारकोड पहले से मौजूद है!', 'error');
+            return; // <-- मैंने यहाँ से फालतू की saveDataToFirebase() लाइन हटा दी है
+        }
+        products[productId] = { id: productId, barcode, manualId, name, price, details, fillingQuantity, unit, dateAdded: new Date().toISOString() };
+        triggerHapticFeedback();
+        if (history.state && history.state.modal) { history.back(); } else { closeAddModal(); }
+        searchAndSortProducts();
+        showToast('✅ प्रोडक्ट सफलतापूर्वक जोड़ा गया!', 'success');
+        saveDataToFirebase();
     }
-}
-        function toggleMenu() { 
-            const menu = document.getElementById('menuDropdown'); 
-            const menuContent = document.getElementById('menuContent');
-            const isOpening = menu.classList.contains('hidden');
-            
-            if (isOpening) {
-                menu.classList.remove('hidden');
-                history.pushState({ menu: 'open' }, '', location.href);
-            } else {
-                 menuContent.classList.remove('slide-up');
-                 menuContent.style.animation = 'slideDown 0.3s cubic-bezier(0.7, 0, 0.84, 0) forwards';
-                 setTimeout(() => {
-                     menu.classList.add('hidden');
-                     menuContent.style.animation = '';
-                     menuContent.classList.add('slide-up');
-                 }, 300);
-            }
-        }
-        function showToast(message, type = 'info') { const toast = document.createElement('div'); const bgColor = type === 'success' ? 'secondary-bg' : type === 'error' ? 'bg-red-500' : 'primary-bg'; toast.className = `fixed top-14 right-3 ${bgColor} text-white px-3 py-1.5 rounded-lg shadow-lg z-50 fade-in text-sm font-medium`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.remove(); }, 2000); }
-        function showSection(section, pushToHistory = true) { if (currentSection === section && !pushToHistory) return; ['home', 'store', 'shopping', 'history'].forEach(s => { document.getElementById(s + 'Section').classList.add('hidden'); document.getElementById(s + 'TabMobile').classList.remove('active'); document.getElementById(s + 'TabDesktop').classList.remove('active'); }); document.getElementById(section + 'Section').classList.remove('hidden'); document.getElementById(section + 'Section').classList.add('fade-in'); document.getElementById(section + 'TabMobile').classList.add('active'); document.getElementById(section + 'TabDesktop').classList.add('active'); document.getElementById('floatingAddBtn').classList.toggle('hidden', section !== 'store'); currentSection = section; if (pushToHistory) { history.pushState({ section: section }, '', `#${section}`); } if (section === 'store') { searchAndSortProducts(); } else if (isScanning) { stopScanning(currentScanningSection); } }
-        function startScanning(section) { 
-            if (isScanning) return; 
-            currentScanningSection = section; 
-            const scannerDiv = document.getElementById(section + 'Scanner'); 
-            scannerDiv.classList.remove('hidden'); 
-            isScanning = true; 
-            history.pushState({ scanner: 'open' }, '', location.href); 
-            const readerElement = document.getElementById(section + 'Reader'); 
-            html5QrCode = new Html5Qrcode(readerElement.id); 
-            const config = { 
-                fps: 25, 
-                // qrbox REMOVED FOR FULL SCREEN SCANNING
-                rememberLastUsedCamera: true, 
-                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA], 
-                disableFlip: false 
-            }; 
-            html5QrCode.start({ facingMode: 'environment' }, config, handleScanResult)
-                .then(() => { setupCameraControls(section); })
-                .catch(err => { 
-                    showToast('❌ कैमरा एक्सेस नहीं हो सका।', 'error'); 
-                    if(history.state && history.state.scanner){ history.back(); } 
-                }); 
-        }
-        function stopScanning(section) { if (html5QrCode && html5QrCode.isScanning) { html5QrCode.stop().catch(err => {}); } if (section) { const scannerDiv = document.getElementById(section + 'Scanner'); if (scannerDiv) { scannerDiv.classList.add('hidden'); } const flashIcon = scannerDiv.querySelector('.flash-icon'); if (flashIcon) flashIcon.textContent = '🔦'; } isScanning = false; flashlightEnabled = false; currentCameraTrack = null; }
-        function handleScanResult(decodedText, decodedResult) {
-            triggerHapticFeedback(50);
-            const section = currentScanningSection;
-            
-            stopScanning(section);
-            if (section === 'store') {
-                document.getElementById('productBarcode').value = decodedText;
-                document.getElementById('productManualId').value = decodedText; // Auto-fill manual ID
-                fetchProductDetails(decodedText);
-                showToast('📱 बारकोड स्कैन हो गया!', 'success');
-            } else {
-                if (history.state && history.state.scanner) {
-                    history.back();
-                }
-                const product = Object.values(products).find(p => p.barcode === decodedText || p.manualId === decodedText);
-                if (section === 'shopping') {
-                    if (product) {
-                        addToBill(product.id);
-                    } else {
-                        showToast(`❌ प्रोडक्ट '${decodedText}' स्टोर में नहीं है!`, 'error');
-                    }
-                } else if (section === 'dashboard') {
-                    displayDashboardScanResult(decodedText);
-                    showToast('📱 बारकोड स्कैन हो गया!', 'success');
-                }
-            }
-        }
-        function setupCameraControls(section) { const readerElement = document.getElementById(section + 'Reader'); const videoElement = readerElement.querySelector('video'); if (!videoElement || !videoElement.srcObject) return; currentCameraTrack = videoElement.srcObject.getVideoTracks()[0]; const capabilities = currentCameraTrack.getCapabilities(); const zoomControl = document.getElementById(section + 'ZoomControl'); const zoomSlider = document.getElementById(section + 'ZoomSlider'); if (capabilities.zoom) { zoomControl.classList.remove('hidden'); zoomControl.classList.add('flex'); zoomSlider.min = capabilities.zoom.min; zoomSlider.max = capabilities.zoom.max; zoomSlider.step = capabilities.zoom.step; zoomSlider.value = currentCameraTrack.getSettings().zoom || capabilities.zoom.min; } }
-        function applyZoom() { if (!currentCameraTrack || !currentScanningSection) return; const zoomSlider = document.getElementById(currentScanningSection + 'ZoomSlider'); if(zoomSlider) { const zoomValue = parseFloat(zoomSlider.value); currentCameraTrack.applyConstraints({ advanced: [{ zoom: zoomValue }] }).catch(e => console.error("Zoom apply error:", e)); } }
-        function toggleFlashlight(section) { if (!currentCameraTrack) { showToast('❌ कैमरा ट्रैक नहीं मिला।', 'error'); return; } const capabilities = currentCameraTrack.getCapabilities(); if (capabilities.torch) { flashlightEnabled = !flashlightEnabled; currentCameraTrack.applyConstraints({ advanced: [{ torch: flashlightEnabled }] }).then(() => { const scannerControls = document.querySelector(`#${section}Scanner .scanner-controls`); const flashIcon = scannerControls.querySelector('.flash-icon'); if(flashIcon) flashIcon.textContent = flashlightEnabled ? '💡' : '🔦'; }).catch(() => showToast('❌ फ्लैशलाइट ऑन नहीं हो सकी', 'error')); } else { showToast('❌ इस डिवाइस पर फ्लैशलाइट सपोर्ट नहीं है', 'error'); } }
-        function addProduct() { 
-            const barcode = document.getElementById('productBarcode').value.trim();
-            const manualId = document.getElementById('productManualId').value.trim();
-            const name = document.getElementById('productName').value.trim(); 
-            const price = parseFloat(document.getElementById('productPrice').value); 
-            const details = document.getElementById('productDetails').value.trim(); 
-            const fillingQuantity = parseFloat(document.getElementById('productFillingQuantity').value) || 1; 
-            const unit = document.getElementById('productUnit').value; 
+    
+    // --- DATA IMPORT / EXPORT ---
+    function exportData() {
+        toggleMenu();
+        const data = { storeName, products, billHistory, notes, exportDate: new Date().toISOString() };
+        const dataStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${storeName}_backup_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        showToast('✅ डेटा एक्सपोर्ट हो गया!', 'success');
+    }
 
-            if (!name || isNaN(price) || isNaN(fillingQuantity) || fillingQuantity <= 0) { 
-                showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return;
-              
-            }
-            if (!manualId && !barcode) {
-                showToast('❌ कृपया बारकोड स्कैन करें या मैन्युअल ID डालें', 'error'); return;
-             
-            }
-
-            const productId = manualId || barcode; // Prioritize Manual ID
-            if(products[productId]){ 
-                showToast('❌ यह मैन्युअल ID/बारकोड पहले से मौजूद है!', 'error'); return; 
-                saveDataToFirebase(); // <-- यह लाइन जोड़ें
-            } 
-            products[productId] = { id: productId, barcode, manualId, name, price, details, fillingQuantity, unit, dateAdded: new Date().toISOString() }; 
-            triggerHapticFeedback(); 
-            if (history.state && history.state.modal) { history.back(); } else { closeAddModal(); } 
-            searchAndSortProducts(); 
-            showToast('✅ प्रोडक्ट सफलतापूर्वक जोड़ा गया!', 'success'); 
-            saveDataToFirebase(); // <-- यह लाइन जोड़ें
-        }
-        const debouncedSearch = debounce(searchAndSortProducts, 300);
-        function searchAndSortProducts() { 
-            const searchQuery = document.getElementById('storeSearchInput').value.trim().toLowerCase(); 
-            const hinglishQuery = transliterateHinglish(searchQuery);
-            const sortBy = document.getElementById('sortOrderSelect').value; 
-            let productArray = Object.values(products); 
-            if (searchQuery) { 
-                productArray = productArray.filter(p => 
-                    p.name.toLowerCase().includes(searchQuery) ||
-                    (hinglishQuery && p.name.includes(hinglishQuery)) ||
-                    (p.barcode && p.barcode.toLowerCase().includes(searchQuery)) ||
-                    (p.manualId && p.manualId.toLowerCase().includes(searchQuery)) || 
-                    p.id.toString().includes(searchQuery)
-                ); 
-            } 
-            productArray.sort((a, b) => { switch (sortBy) { case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name); case 'price-asc': return a.price - b.price; case 'price-desc': return b.price - a.price; case 'date-asc': return new Date(a.dateAdded) - new Date(b.dateAdded); case 'date-desc': default: return new Date(b.dateAdded) - new Date(a.dateAdded); } }); 
-            displayProducts(productArray); 
-        }
-        function toggleStoreEditMode() { isStoreEditMode = !isStoreEditMode; const btn = document.getElementById('editModeBtn'); btn.classList.toggle('primary-bg', isStoreEditMode); btn.classList.toggle('text-white', isStoreEditMode); btn.classList.toggle('bg-gray-200', !isStoreEditMode); btn.classList.toggle('text-gray-500', !isStoreEditMode); searchAndSortProducts(); }
-        function changeStoreView(view) { storeView = view; localStorage.setItem('storeView', view); const switcher = document.getElementById('view-switcher'); switcher.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active')); switcher.querySelector(`button[onclick="changeStoreView('${view}')"]`).classList.add('active'); searchAndSortProducts(); }
-        function displayProducts(productsToDisplay) {
-            const list = document.getElementById('productsList');
-            list.innerHTML = '';
-            list.style.gridTemplateColumns = ''; // Reset grid style
-            const productArray = productsToDisplay || Object.values(products);
-            document.getElementById('view-switcher').querySelector(`button[onclick="changeStoreView('${storeView}')"]`).classList.add('active');
-
-            if (storeView === 'grid') {
-                list.className = 'grid gap-3';
-                list.style.gridTemplateColumns = 'repeat(auto-fit, minmax(170px, 1fr))'; // IMPROVED: Responsive grid
-            } else {
-                list.className = 'space-y-2';
-            }
-            if (productArray.length === 0) {
-                list.className = '';
-                list.style.gridTemplateColumns = '';
-                list.innerHTML = `<div class="text-center text-gray-500 col-span-full py-16 flex flex-col items-center"><svg class="w-16 h-16 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg><h3 class="font-bold text-md" data-lang-key="empty_state_no_products_title">अभी कोई प्रोडक्ट नहीं है</h3><p class="mb-4 text-sm" data-lang-key="empty_state_no_products_desc">नीचे दिए गए बटन से अपना पहला प्रोडक्ट जोड़ें।</p><button onclick="showAddModal()" class="primary-bg text-white py-2 px-5 rounded-lg font-semibold modern-btn text-sm flex items-center justify-center space-x-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span data-lang-key="empty_state_add_product_btn">नया प्रोडक्ट जोड़ें</span></button></div>`;
-            } else {
-                productArray.forEach(p => {
-                    const card = document.createElement('div');
-                    card.dataset.id = p.id;
-                    const unitLabel = unitTextMap[p.unit] || p.unit;
-                    let cardHTML = '';
-                    const editBtn = `<button data-action="edit" class="bg-blue-100 text-blue-700 font-semibold py-1.5 px-2 rounded-md hover:bg-blue-200 transition-colors flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg></button>`;
-                    const deleteBtn = `<button data-action="delete" class="bg-red-100 text-red-700 font-semibold py-1.5 px-2 rounded-md hover:bg-red-200 transition-colors flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>`;
-                    const addBtnGrid = `<button data-action="add" class="w-full bg-green-100 text-green-700 font-semibold py-1.5 rounded-md hover:bg-green-200 transition-colors flex items-center justify-center space-x-1 text-xs"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span data-lang-key="btn_add">जोड़ें</span></button>`;
-                    let buttonsHTML = isStoreEditMode ? `<div class="grid grid-cols-2 gap-1.5">${editBtn}${deleteBtn}</div>` : addBtnGrid;
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                showConfirmModal('📥 डेटा इम्पोर्ट करें?', 'क्या आप वाकई डेटा इम्पोर्ट करना चाहते हैं? यह मौजूदा डेटा को बदल देगा।', () => {
+                    if (data.storeName) storeName = data.storeName;
+                    if (data.products) products = data.products;
+                    if (data.billHistory) billHistory = data.billHistory;
+                    if (data.notes) notes = data.notes;
                     
-                    if (storeView === 'grid') {
-                        card.className = 'modern-card p-2.5 flex flex-col justify-between fade-in';
-                        cardHTML = `<div class="flex-grow"><div class="flex justify-between items-start gap-2 mb-1"><h4 class="font-bold text-sm leading-tight flex-1 product-name-text">${p.name}</h4><div class="barcode-badge" title="#${p.manualId || p.id}">${p.manualId || p.id}</div></div><p class="price-text font-bold text-md mb-1">₹${p.price} <span class="text-xs font-medium meta-text">/ ${p.fillingQuantity || 1} ${unitLabel}</span></p>${p.details ? `<p class="text-xs" style="color: var(--text-light);">${p.details}</p>` : ''}</div><div class="border-t pt-2 mt-2 text-xs" style="border-color: color-mix(in srgb, var(--text) 8%, transparent);">${buttonsHTML}</div>`;
-                    } else {
-                        const isCompact = storeView === 'compact';
-                        let listButtonsHTML = '';
-                        if (isStoreEditMode) {
-                            listButtonsHTML = `<button data-action="edit" class="bg-blue-100 text-blue-700 font-semibold p-2 rounded-lg hover:bg-blue-200 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg></button><button data-action="delete" class="bg-red-100 text-red-700 font-semibold p-2 rounded-lg hover:bg-red-200 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>`;
-                        } else {
-                            listButtonsHTML = `<button data-action="add" class="bg-green-100 text-green-700 font-semibold p-2 rounded-lg hover:bg-green-200 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></button>`;
-                        }
-                        card.className = `modern-card ${isCompact ? 'p-2' : 'p-2.5'} flex items-center justify-between gap-3 fade-in`;
-                        cardHTML = `<div class="flex-1 overflow-hidden"><h4 class="font-bold product-name-text ${isCompact ? 'text-sm':'text-base'} leading-tight truncate">${p.name}</h4><p class="price-text font-semibold ${isCompact ? 'text-xs':'text-sm'}">₹${p.price} <span class="text-xs font-medium meta-text">/ ${p.fillingQuantity || 1} ${unitLabel}</span></p>${!isCompact && p.details ? `<p class="text-xs mt-1 truncate" style="color: var(--text-light);">${p.details}</p>`:''}</div><div class="flex items-center ${isCompact ? 'gap-1.5':'gap-2'} text-xs">${listButtonsHTML}</div>`;
-                    }
-                    card.innerHTML = cardHTML;
-                    list.appendChild(card);
-                });
+                    document.getElementById('storeName').textContent = storeName;
+                    document.getElementById('mobileStoreName').textContent = storeName;
+                    searchAndSortProducts();
+                    filterAndDisplayHistory();
+                    
+                    // ✅ यहाँ पर सिंटैक्स ठीक किया गया है
+                    saveDataToFirebase().then(() => {
+                        showToast('✅ डेटा सफलतापूर्वक इम्पोर्ट और सिंक हो गया!', 'success');
+                    });
+                }, 'secondary-bg');
+            } catch (error) {
+                showToast('❌ गलत फाइल फॉर्मेट!', 'error');
             }
-            updateDashboardStats();
-        }
-        function handleProductListActions(event) { const button = event.target.closest('[data-action]'); if (!button) return; const card = button.closest('[data-id]'); const productId = card.dataset.id; const action = button.dataset.action; switch (action) { case 'add': addToBillFromStore(productId, button); break; case 'edit': editProduct(productId); break; case 'delete': handleDeleteProduct(productId); break; } }
-        function editProduct(productId) { toggleBodyScroll(true); const product = products[productId]; if (!product) return; currentEditingProduct = productId; document.getElementById('editProductBarcode').value = product.barcode || ''; document.getElementById('editProductManualId').value = product.manualId || ''; document.getElementById('editProductName').value = product.name; document.getElementById('editProductPrice').value = product.price; document.getElementById('editProductDetails').value = product.details || ''; document.getElementById('editProductFillingQuantity').value = product.fillingQuantity || 1; document.getElementById('editProductUnit').value = product.unit || 'piece'; document.getElementById('editModal').classList.remove('hidden'); history.pushState({ modal: 'edit' }, '', location.href); }
-        function updateProduct() { 
-            if (!currentEditingProduct) return; 
-            
-            const newBarcode = document.getElementById('editProductBarcode').value.trim();
-            const newManualId = document.getElementById('editProductManualId').value.trim();
-            const newProductId = newManualId || newBarcode;
-            
-            if (!newProductId) {
-                showToast('❌ मैन्युअल ID या बारकोड खाली नहीं हो सकता!', 'error'); return;
-            }
-            if (newProductId !== currentEditingProduct && products[newProductId]) { 
-                showToast('❌ यह मैन्युअल ID/बारकोड पहले से मौजूद है!', 'error'); return; 
-            } 
-            
-            const name = document.getElementById('editProductName').value.trim(); 
-            const price = parseFloat(document.getElementById('editProductPrice').value); 
-            const details = document.getElementById('editProductDetails').value.trim(); 
-            const fillingQuantity = parseFloat(document.getElementById('editProductFillingQuantity').value) || 1; 
-            const unit = document.getElementById('editProductUnit').value; 
-            
-            if (!name || isNaN(price) || isNaN(fillingQuantity) || fillingQuantity <= 0) { 
-                showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return; 
-            } 
-            
-            const updatedProduct = { ...products[currentEditingProduct], id: newProductId, barcode: newBarcode, manualId: newManualId, name, price, details, fillingQuantity, unit }; 
-            
-            delete products[currentEditingProduct]; // Delete old entry
-            products[newProductId] = updatedProduct; // Add new entry with new ID
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
 
-            triggerHapticFeedback(); 
-            if (history.state && history.state.modal) { history.back(); } else { closeEditModal(); } 
-            searchAndSortProducts(); 
-            showToast('✅ प्रोडक्ट अपडेट हो गया!', 'success');
-            saveDataToFirebase();
-        }
-        function handleDeleteProduct(productId) { showConfirmModal('🗑️ प्रोडक्ट डिलीट करें?', 'क्या आप वाकई इस प्रोडक्ट को डिलीट करना चाहते हैं? यह एक्शन वापस नहीं लिया जा सकता।', () => { delete products[productId]; triggerHapticFeedback(); searchAndSortProducts(); showToast('✅ प्रोडक्ट डिलीट हो गया!', 'success'); saveDataToFirebase();}); }
-        function displayDashboardScanResult(barcode) { 
-            const resultDiv = document.getElementById('dashboardScanResult'); 
-            const product = Object.values(products).find(p => p.barcode === barcode || p.manualId === barcode);
-            resultDiv.classList.remove('hidden'); resultDiv.innerHTML = ''; 
-            const content = document.createElement('div'); content.className = 'fade-in'; 
-            let productInfoHtml = ''; 
-            if (product) { 
-                const unitLabel = unitTextMap[product.unit] || product.unit; 
-                productInfoHtml = `<h4 class="font-bold text-md mb-1 product-name-text">${product.name}</h4><p class="price-text font-bold text-lg mb-2">₹${product.price} <span class="text-sm font-medium meta-text">/ ${product.fillingQuantity || 1} ${unitLabel}</span></p>${product.details ? `<p class="text-sm mb-3" style="color:var(--text-light)">${product.details}</p>` : ''}<button onclick="addToBillFromDashboard('${product.id}')" class="w-full secondary-bg text-white py-2 px-3 rounded-lg font-semibold modern-btn text-sm" data-lang-key="scan_add_to_bill">बिल में जोड़ें</button>`; 
-            } else { 
-                productInfoHtml = `<p class="text-center font-semibold text-red-600" data-lang-key="scan_result_not_found">प्रोडक्ट स्टोर में नहीं मिला!</p><p class="text-center text-sm my-2" style="color:var(--text-light)">ID: ${barcode}</p><button onclick="showAddModalWithBarcode('${barcode}')" class="w-full primary-bg text-white py-2 px-3 rounded-lg font-semibold modern-btn text-sm" data-lang-key="scan_add_as_new">इसे नए प्रोडक्ट के रूप में जोड़ें</button>`; 
-            } 
-            content.innerHTML = `<div class="flex justify-between items-center mb-2 pb-2 border-b" style="border-color: var(--border-color);"><h4 class="font-bold text-sm" data-lang-key="scan_result_title" style="color:var(--text-light)">स्कैन का परिणाम</h4><button onclick="closeDashboardResult()" class="text-gray-400 hover:text-red-500 text-2xl font-bold">&times;</button></div>${productInfoHtml}`; 
-            resultDiv.appendChild(content); 
-            setLanguage(currentLanguage); 
-        }
-        function closeDashboardResult() { document.getElementById('dashboardScanResult').classList.add('hidden'); }
-        function addToBillFromDashboard(productId) { addToBill(productId); showSection('shopping'); }
-        function showAddModalWithBarcode(barcode) { closeDashboardResult(); showAddModal(); setTimeout(() => { document.getElementById('productBarcode').value = barcode; document.getElementById('productManualId').value = barcode; fetchProductDetails(barcode); }, 100); }
-        
-        function addManualItemToBill() {
-            const name = document.getElementById('manualItemName').value.trim();
-            const totalPrice = parseFloat(document.getElementById('manualItemPrice').value); 
-            const fillingQuantity = parseInt(document.getElementById('manualItemQuantity').value); 
-            const unit = document.getElementById('manualItemUnit').value;
+    // --- THE REST OF YOUR FUNCTIONS ---
+    // (मैंने बाकी फंक्शन्स को यहाँ शामिल नहीं किया है क्योंकि उनमें कोई गलती नहीं थी,
+    // लेकिन आपको अपने पुराने कोड से सभी फंक्शन्स को यहाँ रखना होगा)
+    
+    const debouncedSearch = debounce(searchAndSortProducts, 300);
+    function applyTheme(theme) { if (theme === 'dark') { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } localStorage.setItem('theme', theme); updateThemeColorMeta(); }
+    function toggleTheme() { const currentTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); const newTheme = currentTheme === 'dark' ? 'light' : 'dark'; applyTheme(newTheme); toggleMenu(); }
+    function updateThemeColorMeta() { setTimeout(() => { const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(); document.getElementById('theme-color-meta').setAttribute('content', primaryColor); }, 50); }
+    function updateDashboardStats() { document.getElementById('totalProductsStat').textContent = Object.keys(products).length; document.getElementById('totalBillsStat').textContent = billHistory.length; }
+    function showAddModal() { toggleBodyScroll(true); document.getElementById('productBarcode').value = ''; document.getElementById('productManualId').value = ''; document.getElementById('productName').value = ''; document.getElementById('productPrice').value = ''; document.getElementById('productDetails').value = ''; document.getElementById('productFillingQuantity').value = '1'; document.getElementById('productUnit').value = 'piece'; document.getElementById('addProductModal').classList.remove('hidden'); history.pushState({ modal: 'add' }, '', location.href); }
+    function closeAddModal() { toggleBodyScroll(false); const modal = document.getElementById('addProductModal'); if (!modal.classList.contains('hidden')) { modal.classList.add('hidden'); if (isScanning) { stopScanning(currentScanningSection); } } }
+    function showManualAddModal() { toggleBodyScroll(true); document.getElementById('manualItemName').value = ''; document.getElementById('manualItemPrice').value = ''; document.getElementById('manualItemQuantity').value = '1'; document.getElementById('manualItemUnit').value = 'piece'; document.getElementById('manualAddModal').classList.remove('hidden'); history.pushState({ modal: 'manualAdd' }, '', location.href); }
+    function closeManualAddModal() { toggleBodyScroll(false); document.getElementById('manualAddModal').classList.add('hidden'); }
+    function toggleMenu() { const menu = document.getElementById('menuDropdown'); const menuContent = document.getElementById('menuContent'); const isOpening = menu.classList.contains('hidden'); if (isOpening) { menu.classList.remove('hidden'); history.pushState({ menu: 'open' }, '', location.href); } else { menuContent.classList.remove('slide-up'); menuContent.style.animation = 'slideDown 0.3s cubic-bezier(0.7, 0, 0.84, 0) forwards'; setTimeout(() => { menu.classList.add('hidden'); menuContent.style.animation = ''; menuContent.classList.add('slide-up'); }, 300); } }
+    function showSection(section, pushToHistory = true) { if (currentSection === section && !pushToHistory) return; ['home', 'store', 'shopping', 'history'].forEach(s => { document.getElementById(s + 'Section').classList.add('hidden'); document.getElementById(s + 'TabMobile').classList.remove('active'); document.getElementById(s + 'TabDesktop').classList.remove('active'); }); document.getElementById(section + 'Section').classList.remove('hidden'); document.getElementById(section + 'Section').classList.add('fade-in'); document.getElementById(section + 'TabMobile').classList.add('active'); document.getElementById(section + 'TabDesktop').classList.add('active'); document.getElementById('floatingAddBtn').classList.toggle('hidden', section !== 'store'); currentSection = section; if (pushToHistory) { history.pushState({ section: section }, '', `#${section}`); } if (section === 'store') { searchAndSortProducts(); } else if (isScanning) { stopScanning(currentScanningSection); } }
+    function startScanning(section) { if (isScanning) return; currentScanningSection = section; const scannerDiv = document.getElementById(section + 'Scanner'); scannerDiv.classList.remove('hidden'); isScanning = true; history.pushState({ scanner: 'open' }, '', location.href); const readerElement = document.getElementById(section + 'Reader'); html5QrCode = new Html5Qrcode(readerElement.id); const config = { fps: 25, rememberLastUsedCamera: true, supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA], disableFlip: false }; html5QrCode.start({ facingMode: 'environment' }, config, handleScanResult).then(() => { setupCameraControls(section); }).catch(err => { showToast('❌ कैमरा एक्सेस नहीं हो सका।', 'error'); if(history.state && history.state.scanner){ history.back(); } }); }
+    function stopScanning(section) { if (html5QrCode && html5QrCode.isScanning) { html5QrCode.stop().catch(err => {}); } if (section) { const scannerDiv = document.getElementById(section + 'Scanner'); if (scannerDiv) { scannerDiv.classList.add('hidden'); } const flashIcon = scannerDiv.querySelector('.flash-icon'); if (flashIcon) flashIcon.textContent = '🔦'; } isScanning = false; flashlightEnabled = false; currentCameraTrack = null; }
+    function handleScanResult(decodedText, decodedResult) { triggerHapticFeedback(50); const section = currentScanningSection; stopScanning(section); if (section === 'store') { document.getElementById('productBarcode').value = decodedText; document.getElementById('productManualId').value = decodedText; fetchProductDetails(decodedText); showToast('📱 बारकोड स्कैन हो गया!', 'success'); } else { if (history.state && history.state.scanner) { history.back(); } const product = Object.values(products).find(p => p.barcode === decodedText || p.manualId === decodedText); if (section === 'shopping') { if (product) { addToBill(product.id); } else { showToast(`❌ प्रोडक्ट '${decodedText}' स्टोर में नहीं है!`, 'error'); } } else if (section === 'dashboard') { displayDashboardScanResult(decodedText); showToast('📱 बारकोड स्कैन हो गया!', 'success'); } } }
+    function setupCameraControls(section) { const readerElement = document.getElementById(section + 'Reader'); const videoElement = readerElement.querySelector('video'); if (!videoElement || !videoElement.srcObject) return; currentCameraTrack = videoElement.srcObject.getVideoTracks()[0]; const capabilities = currentCameraTrack.getCapabilities(); const zoomControl = document.getElementById(section + 'ZoomControl'); const zoomSlider = document.getElementById(section + 'ZoomSlider'); if (capabilities.zoom) { zoomControl.classList.remove('hidden'); zoomControl.classList.add('flex'); zoomSlider.min = capabilities.zoom.min; zoomSlider.max = capabilities.zoom.max; zoomSlider.step = capabilities.zoom.step; zoomSlider.value = currentCameraTrack.getSettings().zoom || capabilities.zoom.min; } }
+    function applyZoom() { if (!currentCameraTrack || !currentScanningSection) return; const zoomSlider = document.getElementById(currentScanningSection + 'ZoomSlider'); if(zoomSlider) { const zoomValue = parseFloat(zoomSlider.value); currentCameraTrack.applyConstraints({ advanced: [{ zoom: zoomValue }] }).catch(e => console.error("Zoom apply error:", e)); } }
+    function toggleFlashlight(section) { if (!currentCameraTrack) { showToast('❌ कैमरा ट्रैक नहीं मिला।', 'error'); return; } const capabilities = currentCameraTrack.getCapabilities(); if (capabilities.torch) { flashlightEnabled = !flashlightEnabled; currentCameraTrack.applyConstraints({ advanced: [{ torch: flashlightEnabled }] }).then(() => { const scannerControls = document.querySelector(`#${section}Scanner .scanner-controls`); const flashIcon = scannerControls.querySelector('.flash-icon'); if(flashIcon) flashIcon.textContent = flashlightEnabled ? '💡' : '🔦'; }).catch(() => showToast('❌ फ्लैशलाइट ऑन नहीं हो सकी', 'error')); } else { showToast('❌ इस डिवाइस पर फ्लैशलाइट सपोर्ट नहीं है', 'error'); } }
+    function searchAndSortProducts() { const searchQuery = document.getElementById('storeSearchInput').value.trim().toLowerCase(); const hinglishQuery = transliterateHinglish(searchQuery); const sortBy = document.getElementById('sortOrderSelect').value; let productArray = Object.values(products); if (searchQuery) { productArray = productArray.filter(p => p.name.toLowerCase().includes(searchQuery) || (hinglishQuery && p.name.includes(hinglishQuery)) || (p.barcode && p.barcode.toLowerCase().includes(searchQuery)) || (p.manualId && p.manualId.toLowerCase().includes(searchQuery)) || p.id.toString().includes(searchQuery)); } productArray.sort((a, b) => { switch (sortBy) { case 'name-asc': return a.name.localeCompare(b.name); case 'name-desc': return b.name.localeCompare(a.name); case 'price-asc': return a.price - b.price; case 'price-desc': return b.price - a.price; case 'date-asc': return new Date(a.dateAdded) - new Date(b.dateAdded); case 'date-desc': default: return new Date(b.dateAdded) - new Date(a.dateAdded); } }); displayProducts(productArray); }
+    function toggleStoreEditMode() { isStoreEditMode = !isStoreEditMode; const btn = document.getElementById('editModeBtn'); btn.classList.toggle('primary-bg', isStoreEditMode); btn.classList.toggle('text-white', isStoreEditMode); btn.classList.toggle('bg-gray-200', !isStoreEditMode); btn.classList.toggle('text-gray-500', !isStoreEditMode); searchAndSortProducts(); }
+    function changeStoreView(view) { storeView = view; localStorage.setItem('storeView', view); const switcher = document.getElementById('view-switcher'); switcher.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active')); switcher.querySelector(`button[onclick="changeStoreView('${view}')"]`).classList.add('active'); searchAndSortProducts(); }
+    function displayProducts(productsToDisplay) { const list = document.getElementById('productsList'); list.innerHTML = ''; list.style.gridTemplateColumns = ''; const productArray = productsToDisplay || Object.values(products); document.getElementById('view-switcher').querySelector(`button[onclick="changeStoreView('${storeView}')"]`).classList.add('active'); if (storeView === 'grid') { list.className = 'grid gap-3'; list.style.gridTemplateColumns = 'repeat(auto-fit, minmax(170px, 1fr))'; } else { list.className = 'space-y-2'; } if (productArray.length === 0) { list.className = ''; list.style.gridTemplateColumns = ''; list.innerHTML = `<div class="text-center text-gray-500 col-span-full py-16 flex flex-col items-center"><svg class="w-16 h-16 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg><h3 class="font-bold text-md" data-lang-key="empty_state_no_products_title">अभी कोई प्रोडक्ट नहीं है</h3><p class="mb-4 text-sm" data-lang-key="empty_state_no_products_desc">नीचे दिए गए बटन से अपना पहला प्रोडक्ट जोड़ें।</p><button onclick="showAddModal()" class="primary-bg text-white py-2 px-5 rounded-lg font-semibold modern-btn text-sm flex items-center justify-center space-x-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span data-lang-key="empty_state_add_product_btn">नया प्रोडक्ट जोड़ें</span></button></div>`; } else { productArray.forEach(p => { const card = document.createElement('div'); card.dataset.id = p.id; const unitLabel = unitTextMap[p.unit] || p.unit; let cardHTML = ''; const editBtn = `<button data-action="edit" class="bg-blue-100 text-blue-700 font-semibold py-1.5 px-2 rounded-md hover:bg-blue-200 transition-colors flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg></button>`; const deleteBtn = `<button data-action="delete" class="bg-red-100 text-red-700 font-semibold py-1.5 px-2 rounded-md hover:bg-red-200 transition-colors flex items-center justify-center space-x-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>`; const addBtnGrid = `<button data-action="add" class="w-full bg-green-100 text-green-700 font-semibold py-1.5 rounded-md hover:bg-green-200 transition-colors flex items-center justify-center space-x-1 text-xs"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span data-lang-key="btn_add">जोड़ें</span></button>`; let buttonsHTML = isStoreEditMode ? `<div class="grid grid-cols-2 gap-1.5">${editBtn}${deleteBtn}</div>` : addBtnGrid; if (storeView === 'grid') { card.className = 'modern-card p-2.5 flex flex-col justify-between fade-in'; cardHTML = `<div class="flex-grow"><div class="flex justify-between items-start gap-2 mb-1"><h4 class="font-bold text-sm leading-tight flex-1 product-name-text">${p.name}</h4><div class="barcode-badge" title="#${p.manualId || p.id}">${p.manualId || p.id}</div></div><p class="price-text font-bold text-md mb-1">₹${p.price} <span class="text-xs font-medium meta-text">/ ${p.fillingQuantity || 1} ${unitLabel}</span></p>${p.details ? `<p class="text-xs" style="color: var(--text-light);">${p.details}</p>` : ''}</div><div class="border-t pt-2 mt-2 text-xs" style="border-color: color-mix(in srgb, var(--text) 8%, transparent);">${buttonsHTML}</div>`; } else { const isCompact = storeView === 'compact'; let listButtonsHTML = ''; if (isStoreEditMode) { listButtonsHTML = `<button data-action="edit" class="bg-blue-100 text-blue-700 font-semibold p-2 rounded-lg hover:bg-blue-200 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg></button><button data-action="delete" class="bg-red-100 text-red-700 font-semibold p-2 rounded-lg hover:bg-red-200 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>`; } else { listButtonsHTML = `<button data-action="add" class="bg-green-100 text-green-700 font-semibold p-2 rounded-lg hover:bg-green-200 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg></button>`; } card.className = `modern-card ${isCompact ? 'p-2' : 'p-2.5'} flex items-center justify-between gap-3 fade-in`; cardHTML = `<div class="flex-1 overflow-hidden"><h4 class="font-bold product-name-text ${isCompact ? 'text-sm':'text-base'} leading-tight truncate">${p.name}</h4><p class="price-text font-semibold ${isCompact ? 'text-xs':'text-sm'}">₹${p.price} <span class="text-xs font-medium meta-text">/ ${p.fillingQuantity || 1} ${unitLabel}</span></p>${!isCompact && p.details ? `<p class="text-xs mt-1 truncate" style="color: var(--text-light);">${p.details}</p>`:''}</div><div class="flex items-center ${isCompact ? 'gap-1.5':'gap-2'} text-xs">${listButtonsHTML}</div>`; } card.innerHTML = cardHTML; list.appendChild(card); }); } updateDashboardStats(); }
+    function handleProductListActions(event) { const button = event.target.closest('[data-action]'); if (!button) return; const card = button.closest('[data-id]'); const productId = card.dataset.id; const action = button.dataset.action; switch (action) { case 'add': addToBillFromStore(productId, button); break; case 'edit': editProduct(productId); break; case 'delete': handleDeleteProduct(productId); break; } }
+    function editProduct(productId) { toggleBodyScroll(true); const product = products[productId]; if (!product) return; currentEditingProduct = productId; document.getElementById('editProductBarcode').value = product.barcode || ''; document.getElementById('editProductManualId').value = product.manualId || ''; document.getElementById('editProductName').value = product.name; document.getElementById('editProductPrice').value = product.price; document.getElementById('editProductDetails').value = product.details || ''; document.getElementById('editProductFillingQuantity').value = product.fillingQuantity || 1; document.getElementById('editProductUnit').value = product.unit || 'piece'; document.getElementById('editModal').classList.remove('hidden'); history.pushState({ modal: 'edit' }, '', location.href); }
+    function updateProduct() { if (!currentEditingProduct) return; const newBarcode = document.getElementById('editProductBarcode').value.trim(); const newManualId = document.getElementById('editProductManualId').value.trim(); const newProductId = newManualId || newBarcode; if (!newProductId) { showToast('❌ मैन्युअल ID या बारकोड खाली नहीं हो सकता!', 'error'); return; } if (newProductId !== currentEditingProduct && products[newProductId]) { showToast('❌ यह मैन्युअल ID/बारकोड पहले से मौजूद है!', 'error'); return; } const name = document.getElementById('editProductName').value.trim(); const price = parseFloat(document.getElementById('editProductPrice').value); const details = document.getElementById('editProductDetails').value.trim(); const fillingQuantity = parseFloat(document.getElementById('editProductFillingQuantity').value) || 1; const unit = document.getElementById('editProductUnit').value; if (!name || isNaN(price) || isNaN(fillingQuantity) || fillingQuantity <= 0) { showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return; } const updatedProduct = { ...products[currentEditingProduct], id: newProductId, barcode: newBarcode, manualId: newManualId, name, price, details, fillingQuantity, unit }; delete products[currentEditingProduct]; products[newProductId] = updatedProduct; triggerHapticFeedback(); if (history.state && history.state.modal) { history.back(); } else { closeEditModal(); } searchAndSortProducts(); showToast('✅ प्रोडक्ट अपडेट हो गया!', 'success'); saveDataToFirebase(); }
+    function handleDeleteProduct(productId) { showConfirmModal('🗑️ प्रोडक्ट डिलीट करें?', 'क्या आप वाकई इस प्रोडक्ट को डिलीट करना चाहते हैं? यह एक्शन वापस नहीं लिया जा सकता।', () => { delete products[productId]; triggerHapticFeedback(); searchAndSortProducts(); showToast('✅ प्रोडक्ट डिलीट हो गया!', 'success'); saveDataToFirebase();}); }
+    function displayDashboardScanResult(barcode) { const resultDiv = document.getElementById('dashboardScanResult'); const product = Object.values(products).find(p => p.barcode === barcode || p.manualId === barcode); resultDiv.classList.remove('hidden'); resultDiv.innerHTML = ''; const content = document.createElement('div'); content.className = 'fade-in'; let productInfoHtml = ''; if (product) { const unitLabel = unitTextMap[product.unit] || product.unit; productInfoHtml = `<h4 class="font-bold text-md mb-1 product-name-text">${product.name}</h4><p class="price-text font-bold text-lg mb-2">₹${product.price} <span class="text-sm font-medium meta-text">/ ${product.fillingQuantity || 1} ${unitLabel}</span></p>${product.details ? `<p class="text-sm mb-3" style="color:var(--text-light)">${product.details}</p>` : ''}<button onclick="addToBillFromDashboard('${product.id}')" class="w-full secondary-bg text-white py-2 px-3 rounded-lg font-semibold modern-btn text-sm" data-lang-key="scan_add_to_bill">बिल में जोड़ें</button>`; } else { productInfoHtml = `<p class="text-center font-semibold text-red-600" data-lang-key="scan_result_not_found">प्रोडक्ट स्टोर में नहीं मिला!</p><p class="text-center text-sm my-2" style="color:var(--text-light)">ID: ${barcode}</p><button onclick="showAddModalWithBarcode('${barcode}')" class="w-full primary-bg text-white py-2 px-3 rounded-lg font-semibold modern-btn text-sm" data-lang-key="scan_add_as_new">इसे नए प्रोडक्ट के रूप में जोड़ें</button>`; } content.innerHTML = `<div class="flex justify-between items-center mb-2 pb-2 border-b" style="border-color: var(--border-color);"><h4 class="font-bold text-sm" data-lang-key="scan_result_title" style="color:var(--text-light)">स्कैन का परिणाम</h4><button onclick="closeDashboardResult()" class="text-gray-400 hover:text-red-500 text-2xl font-bold">&times;</button></div>${productInfoHtml}`; resultDiv.appendChild(content); setLanguage(currentLanguage); }
+    function closeDashboardResult() { document.getElementById('dashboardScanResult').classList.add('hidden'); }
+    function addToBillFromDashboard(productId) { addToBill(productId); showSection('shopping'); }
+    function showAddModalWithBarcode(barcode) { closeDashboardResult(); showAddModal(); setTimeout(() => { document.getElementById('productBarcode').value = barcode; document.getElementById('productManualId').value = barcode; fetchProductDetails(barcode); }, 100); }
+    function addManualItemToBill() { const name = document.getElementById('manualItemName').value.trim(); const totalPrice = parseFloat(document.getElementById('manualItemPrice').value); const fillingQuantity = parseInt(document.getElementById('manualItemQuantity').value); const unit = document.getElementById('manualItemUnit').value; if (!name || isNaN(totalPrice) || isNaN(fillingQuantity) || totalPrice <= 0 || fillingQuantity <= 0) { showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return; } const manualItem = { id: 'manual_' + Date.now(), name: name, price: totalPrice, quantity: 1, unit: unit, fillingQuantity: fillingQuantity }; const existingItem = billItems.find(item => item.id.startsWith('manual_') && item.name === manualItem.name && item.price === manualItem.price && item.fillingQuantity === manualItem.fillingQuantity && item.unit === manualItem.unit); if (existingItem) { existingItem.quantity += 1; } else { billItems.push(manualItem); } displayBillItems(); updateTotal(); showToast('✅ आइटम बिल में जोड़ा गया!', 'success'); if (history.state && history.state.modal) { history.back(); } else { closeManualAddModal(); } }
+    function addToBill(productId, element) { const product = products[productId]; if (!product) { showToast('❌ प्रोडक्ट नहीं मिला!', 'error'); return; } const existingItem = billItems.find(item => item.id === productId); if (existingItem) { existingItem.quantity += 1; } else { billItems.push({ id: productId, name: product.name, price: product.price, quantity: 1, unit: product.unit, fillingQuantity: product.fillingQuantity }); } if (element) { element.classList.add('bg-green-300'); setTimeout(() => element.classList.remove('bg-green-300'), 400); } document.getElementById('searchProduct').value = ''; document.getElementById('clearShoppingSearch').classList.add('hidden'); document.getElementById('searchResults').classList.add('hidden'); displayBillItems(); updateTotal(); showToast('✅ प्रोडक्ट बिल में जोड़ा गया!', 'success'); }
+    function addToBillFromStore(productId, element) { addToBill(productId, element); showSection('shopping'); }
+    function displayBillItems() { const billDiv = document.getElementById('billItems'); if (billItems.length === 0) { billDiv.innerHTML = `<div class="text-center py-8 text-gray-400 flex flex-col items-center"><svg class="w-12 h-12 text-gray-300 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c.51 0 .962-.343 1.087-.835l1.823-6.812a1.5 1.5 0 00-1.423-1.884H5.318a1.5 1.5 0 00-1.423 1.884l1.823 6.812zM7.5 14.25h11.218M7.5 14.25a3 3 0 01-3-3h.008v.008h-.008v-.008zm12 0a3 3 0 01-3-3h.008v.008h-.008v-.008z" /></svg><h3 class="font-bold text-sm" data-lang-key="empty_state_bill_title">बिल अभी खाली है</h3><p class="text-xs" data-lang-key="empty_state_bill_desc">शुरू करने के लिए प्रोडक्ट जोड़ें।</p></div>`; return; } billDiv.innerHTML = billItems.map((item, index) => { const unitLabel = unitTextMap[item.unit] || item.unit; const totalUnits = item.quantity * item.fillingQuantity; const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); return `<div class="p-2 rounded-lg border fade-in" style="background-color: color-mix(in srgb, var(--text) 3%, transparent); border-color: var(--border-color);"><div class="flex justify-between items-start gap-2"><div class="flex-1"><h4 class="font-bold text-sm leading-tight product-name-text">${item.name} <span class="font-semibold meta-text text-xs">(${formattedTotalUnits} ${unitLabel})</span></h4></div><span class="font-bold text-sm text-right flex-shrink-0 price-text">₹${(item.price * item.quantity).toFixed(2)}</span></div><div class="flex justify-between items-center mt-1"><p class="text-xs" style="color: var(--text-light);">@ ₹${item.price} / ${item.fillingQuantity} ${unitLabel}</p><div class="flex items-center space-x-2"><button onclick="updateQuantity(${index}, -1)" class="w-6 h-6 bg-red-100 text-red-600 rounded-full font-bold hover:bg-red-200 transition-colors flex-shrink-0 flex items-center justify-center">-</button><span class="w-5 text-center font-bold text-sm">${item.quantity}</span><button onclick="updateQuantity(${index}, 1)" class="w-6 h-6 bg-green-100 text-green-600 rounded-full font-bold hover:bg-green-200 transition-colors flex-shrink-0 flex items-center justify-center">+</button></div></div></div>`; }).join(''); }
+    function updateQuantity(index, change) { if (!billItems[index]) return; const newQuantity = billItems[index].quantity + change; if (newQuantity < 1) { showConfirmModal( `"${billItems[index].name}" हटाएं?`, 'क्या आप वाकई इस आइटम को बिल से हटाना चाहते हैं?', () => { billItems.splice(index, 1); displayBillItems(); updateTotal(); showToast('आइटम हटा दिया गया', 'info'); } ); } else { billItems[index].quantity = newQuantity; displayBillItems(); updateTotal(); } }
+    function updateTotal() { const total = billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0); const totalEl = document.getElementById('totalAmount'); totalEl.textContent = `₹${total.toFixed(2)}`; totalEl.classList.add('highlight-total'); setTimeout(() => totalEl.classList.remove('highlight-total'), 700); }
+    function handleClearBill() { if (billItems.length > 0) { showConfirmModal('🗑️ बिल क्लियर करें?', 'क्या आप इस बिल के सभी आइटम्स को हटाना चाहते हैं?', () => { billItems = []; document.getElementById('customerName').value = ''; displayBillItems(); updateTotal(); triggerHapticFeedback(); showToast('✅ बिल क्लियर हो गया!', 'success'); }); } }
+    function generateBillId(date) { const d = date; const day = String(d.getDate()).padStart(2, '0'); const month = String(d.getMonth() + 1).padStart(2, '0'); const year = String(d.getFullYear()); const todayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); const todayEnd = todayStart + (24 * 60 * 60 * 1000); const billsToday = billHistory.filter(b => { const billTime = new Date(b.date).getTime(); return billTime >= todayStart && billTime < todayEnd; }).length; const sequence = String(billsToday + 1).padStart(3, '0'); return `${day}${month}${year}${sequence}`; }
+    function showPaymentTypeModal(action) { if (billItems.length === 0) { showToast('❌ बिल में कोई आइटम नहीं है!', 'error'); return; } const customerNameInput = document.getElementById('customerName'); if (!customerNameInput.value.trim()) { showToast(translations[currentLanguage].customer_name_required, 'error'); customerNameInput.focus(); customerNameInput.classList.add('error'); setTimeout(() => customerNameInput.classList.remove('error'), 1000); return; } currentBillAction = action; document.getElementById('paymentTypeModal').classList.remove('hidden'); toggleBodyScroll(true); history.pushState({ modal: 'payment' }, '', location.href); }
+    function closePaymentTypeModal() { document.getElementById('paymentTypeModal').classList.add('hidden'); toggleBodyScroll(false); currentBillAction = null; }
+    function handlePaymentTypeSelection(type) { if (currentBillAction === 'save') { executeSaveBill(type); } else if (currentBillAction === 'print') { executePrintBill(type); } if (history.state && history.state.modal === 'payment') { history.back(); } else { closePaymentTypeModal(); } }
+    function saveBill() { showPaymentTypeModal('save'); }
+    function printBill() { showPaymentTypeModal('print'); }
+    function executeSaveBill(paymentType) { const customerName = document.getElementById('customerName').value.trim(); const now = new Date(); const bill = { id: generateBillId(now), date: now.toISOString(), customerName: customerName, items: [...billItems], total: billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), paymentType: paymentType }; billHistory.unshift(bill); billItems = []; document.getElementById('customerName').value = ''; displayBillItems(); updateTotal(); filterAndDisplayHistory(); triggerHapticFeedback(100); showToast('✅ बिल सेव हो गया!', 'success'); saveDataToFirebase(); }
+    function executePrintBill(paymentType) { const customerName = document.getElementById('customerName').value.trim(); const bill = { customerName: customerName, items: billItems, total: billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0), date: new Date().toISOString(), id: 'Current', paymentType: paymentType }; const billHtml = generateModernBillHTML(bill); const printWindow = window.open('', '_blank'); if (printWindow) { printWindow.document.write(billHtml); printWindow.document.close(); printWindow.focus(); setTimeout(() => { try { printWindow.print(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 250); } else { showToast('❌ कृपया पॉप-अप को अनुमति दें', 'error'); } }
+    function generateModernBillHTML(bill) { const s = getComputedStyle(document.body); const theme = { primary: '#007AFF', secondary: '#34C759', bg_end: '#F9FAFB', card: '#FFFFFF', text: '#111827', text_light: '#6B7280', border: '#E5E7EB' }; let itemsHtml = ''; bill.items.forEach((item, index) => { const totalUnits = item.quantity * (item.fillingQuantity || 1); const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); const unitLabel = unitTextMap[item.unit] || item.unit; const rowStyle = index % 2 === 0 ? `background-color: ${theme.bg_end};` : ''; itemsHtml += `<tr style="${rowStyle}"><td style="padding: 10px 12px; text-align: left; border-bottom: 1px solid ${theme.border};">${item.name}</td><td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid ${theme.border};">${formattedTotalUnits} ${unitLabel}</td><td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid ${theme.border};">₹${(item.price * item.quantity).toFixed(2)}</td></tr>`; }); let paymentStatusHtml = ''; if (bill.paymentType) { const statusText = bill.paymentType === 'credit' ? 'उधार (Credit)' : 'नगद (Cash)'; const statusColor = bill.paymentType === 'credit' ? '#EF4444' : '#22C55E'; paymentStatusHtml = `<div style="text-align: right;"><p style="font-size: 0.8rem; color:${theme.text_light}; font-weight: 600;">STATUS</p><p style="font-weight: 700; font-size: 1.1rem; color:${statusColor};">${statusText}</p></div>`; } return `<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><title>Bill - ${bill.id}</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');body{font-family:'Inter',sans-serif;background-color:#f3f4f6;color:${theme.text};}@media print{body{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}</style></head><body style="padding: 1rem;"><div style="max-width: 42rem; margin: auto; background-color:${theme.card}; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); padding: 2rem; border: 1px solid ${theme.border};"><div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; border-bottom: 1px solid ${theme.border};"><div style="text-align: left;"><h1 style="font-size: 1.5rem; font-weight: 700; color:${theme.primary};">${storeName}</h1><p style="color:${theme.text_light};">INVOICE</p></div><div style="text-align: right;"><p style="font-weight: 600;">बिल #${bill.id}</p><p style="font-size: 0.875rem; color:${theme.text_light};">${new Date(bill.date).toLocaleString('hi-IN')}</p></div></div><div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;"><div style="text-align: left;"><p style="font-size: 0.8rem; color:${theme.text_light};">BILL TO</p><p style="font-weight: 600;">${bill.customerName || 'N/A'}</p></div>${paymentStatusHtml}</div><div style="width: 100%; overflow-x: auto;"><table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;"><thead><tr style="background-color: ${theme.bg_end};"><th style="padding: 8px 12px; text-align: left; font-weight: 600; color:${theme.primary}; border-bottom: 2px solid ${theme.primary};">प्रोडक्ट</th><th style="padding: 8px 12px; text-align: center; font-weight: 600; color:${theme.primary}; border-bottom: 2px solid ${theme.primary};">मात्रा</th><th style="padding: 8px 12px; text-align: right; font-weight: 600; color:${theme.primary}; border-bottom: 2px solid ${theme.primary};">कुल</th></tr></thead><tbody>${itemsHtml}</tbody></table></div><div style="display: flex; justify-content: flex-end; padding-top: 1.5rem; margin-top: 1.5rem; border-top: 1px solid ${theme.border};"><div style="width: 100%; max-width: 16rem; text-align: right;"><div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span style="color:${theme.text_light};">Subtotal</span><span>₹${bill.total.toFixed(2)}</span></div><div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.125rem; color:${theme.secondary};"><span style="font-weight: 700;">कुल राशि</span><span>₹${bill.total.toFixed(2)}</span></div></div></div><div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid ${theme.border};"><p style="font-size: 0.75rem; color:${theme.text_light};">Thank you for your visit!</p></div></div></body></html>`; }
+    function printOldBill(event, billId) { event.stopPropagation(); const bill = billHistory.find(b => b.id.toString() === billId.toString()); if (!bill) return; const billHtml = generateModernBillHTML(bill); const printWindow = window.open('', '_blank'); if (printWindow) { printWindow.document.write(billHtml); printWindow.document.close(); printWindow.focus(); setTimeout(() => { try { printWindow.print(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 250); } else { showToast('❌ कृपया पॉप-अप को अनुमति दें', 'error'); } }
+    function printAllProducts() { toggleMenu(); if (Object.keys(products).length === 0) { showToast('❌ प्रिंट करने के लिए कोई प्रोडक्ट नहीं है!', 'error'); return; } const computedStyle = getComputedStyle(document.body); const themeStyle = `:root { --primary: ${computedStyle.getPropertyValue('--primary')}; --secondary: ${computedStyle.getPropertyValue('--secondary')}; --card: ${computedStyle.getPropertyValue('--card')}; --text: ${computedStyle.getPropertyValue('--text')}; --text-light: ${computedStyle.getPropertyValue('--text-light')}; --bg-start: ${computedStyle.getPropertyValue('--bg-start')}; }`; const productsHtml = Object.values(products).map((p, index) => `<tr class="border-b"><td class="p-3">${index + 1}</td><td class="p-3 font-semibold">${p.name || ''}</td><td class="p-3">₹${p.price ? p.price.toFixed(2) : '0.00'} / ${p.fillingQuantity || 1} ${unitTextMap[p.unit] || p.unit}</td><td class="p-3 font-mono text-xs">${p.barcode || 'N/A'}</td><td class="p-3 text-xs">${p.details || ''}</td></tr>`).join(''); const printContent = `<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><title>${storeName} - सभी प्रोडक्ट्स</title><script src="https://cdn.tailwindcss.com"><\/script><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); body { font-family: 'Inter', sans-serif; background-color: white !important; color: black !important; } @media print { body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body><div class="container mx-auto p-8"><div class="text-center mb-8 p-4 rounded-lg"><h1 class="text-3xl font-bold text-blue-600">${storeName}</h1><p class="text-gray-500">सभी प्रोडक्ट्स की सूची</p><p class="text-xs mt-1 text-gray-500">${new Date().toLocaleString('hi-IN')}</p></div><div class="rounded-lg shadow-md overflow-hidden border"><table class="w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-3 text-left">#</th><th class="p-3 text-left">नाम</th><th class="p-3 text-left">कीमत/यूनिट</th><th class="p-3 text-left">बारकोड</th><th class="p-3 text-left">विवरण</th></tr></thead><tbody>${productsHtml}</tbody></table></div><div class="text-center mt-6 text-sm text-gray-500">कुल प्रोडक्ट्स: ${Object.keys(products).length}</div></div></body></html>`; const printWindow = window.open('', '_blank'); printWindow.document.write(printContent); printWindow.document.close(); setTimeout(() => { try { printWindow.focus(); printWindow.print(); printWindow.close(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 500); }
+    function handleEditStoreName() { toggleMenu(); showPromptModal('स्टोर का नाम बदलें', 'कृपया अपने स्टोर का नया नाम दर्ज करें।', storeName, (newName) => { if (newName && newName.trim()) { storeName = newName.trim(); document.getElementById('storeName').textContent = storeName; document.getElementById('mobileStoreName').textContent = storeName; saveDataToFirebase(); showToast('✅ स्टोर का नाम अपडेट हो गया!', 'success'); } }); }
+    function closeEditModal() { toggleBodyScroll(false); document.getElementById('editModal').classList.add('hidden'); currentEditingProduct = null; }
+    function searchProducts(query) { const resultsDiv = document.getElementById('searchResults'); const trimmedQuery = query.trim(); if (!trimmedQuery) { resultsDiv.classList.add('hidden'); return; } const lowerCaseQuery = trimmedQuery.toLowerCase(); const hinglishQuery = transliterateHinglish(lowerCaseQuery); const results = Object.values(products).filter(p => p.name.toLowerCase().includes(lowerCaseQuery) || (hinglishQuery && p.name.includes(hinglishQuery)) || (p.barcode && p.barcode.toLowerCase().includes(lowerCaseQuery)) || (p.manualId && p.manualId.toLowerCase().includes(lowerCaseQuery)) || p.id.toString().includes(lowerCaseQuery)).slice(0, 5); if (results.length === 0) { resultsDiv.innerHTML = '<div class="text-center py-3 text-gray-500 text-sm">कोई प्रोडक्ट नहीं मिला</div>'; resultsDiv.classList.remove('hidden'); return; } resultsDiv.innerHTML = results.map(p => ` <div class="p-2 rounded-lg border cursor-pointer hover:border-[var(--primary)] transition-all" onclick="addToBill('${p.id}', this)" style="background-color: color-mix(in srgb, var(--text) 3%, transparent); border-color: var(--border-color);"><div class="font-semibold text-sm product-name-text">${p.name}</div><div class="price-text font-bold text-sm">₹${p.price} <span class="text-xs meta-text"> / ${p.fillingQuantity || 1} ${unitTextMap[p.unit] || p.unit}</span></div></div>`).join(''); resultsDiv.classList.remove('hidden'); }
+    function handleDeleteHistoryItem(event, billId) { event.stopPropagation(); showConfirmModal('🗑️ बिल डिलीट करें?', 'क्या आप वाकई इस बिल को हिस्ट्री से डिलीट करना चाहते हैं?', () => { const index = billHistory.findIndex(b => b.id.toString() === billId.toString()); if (index > -1) { billHistory.splice(index, 1); filterAndDisplayHistory(); showToast('✅ बिल डिलीट हो गया!', 'success'); triggerHapticFeedback();saveDataToFirebase(); } }); }
+    function renameCustomerInHistory(event, billId) { event.stopPropagation(); const billIndex = billHistory.findIndex(b => b.id.toString() === billId.toString()); if (billIndex === -1) return; const currentName = billHistory[billIndex].customerName; showPromptModal( translations[currentLanguage].rename_customer_title || 'Rename Customer', translations[currentLanguage].rename_customer_message || 'Enter the new name for the customer:', currentName, (newName) => { if (newName && newName.trim()) { billHistory[billIndex].customerName = newName.trim(); filterAndDisplayHistory(); showToast(translations[currentLanguage].customer_renamed_success || '✅ Customer name updated!', 'success'); saveDataToFirebase(); } } ); }
+    function loadBillFromHistory(event, billId) { event.stopPropagation(); const bill = billHistory.find(b => b.id.toString() === billId.toString()); if (!bill) return; showConfirmModal( translations[currentLanguage].confirm_load_bill_title || 'Load Bill?', translations[currentLanguage].confirm_load_bill_message || 'This will replace the current bill. Do you want to continue?', () => { billItems = JSON.parse(JSON.stringify(bill.items)); document.getElementById('customerName').value = bill.customerName; showSection('shopping'); displayBillItems(); updateTotal(); showToast(translations[currentLanguage].bill_loaded_success || '✅ Bill loaded successfully!', 'success'); }, 'bg-green-500' ); }
+    function filterAndDisplayHistory() { const searchTerm = document.getElementById('historySearchInput').value.toLowerCase(); const hinglishTerm = transliterateHinglish(searchTerm); const searchDate = document.getElementById('historyDateInput').value; let filtered = billHistory; if (searchTerm) { filtered = filtered.filter(bill => bill.customerName.toLowerCase().includes(searchTerm) || (hinglishTerm && bill.customerName.includes(hinglishTerm)) || bill.items.some(item => item.name.toLowerCase().includes(searchTerm) || (hinglishTerm && item.name.includes(hinglishTerm)))); } if (searchDate) { filtered = filtered.filter(bill => { const billDate = new Date(bill.date); const billYear = billDate.getFullYear(); const billMonth = String(billDate.getMonth() + 1).padStart(2, '0'); const billDay = String(billDate.getDate()).padStart(2, '0'); const billDateString = `${billYear}-${billMonth}-${billDay}`; return billDateString === searchDate; }); } displayBillHistory(filtered); }
+    function displayBillHistory(billsToDisplay = billHistory) { const historyDiv = document.getElementById('billHistory'); historyDiv.className = 'space-y-2'; if (billsToDisplay.length === 0) { historyDiv.innerHTML = `<div class="text-center py-16 text-gray-400 flex flex-col items-center"><svg class="w-16 h-16 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg><h3 class="font-bold text-md" data-lang-key="empty_state_history_title">कोई बिल हिस्ट्री नहीं है</h3><p class="text-sm" data-lang-key="empty_state_history_desc">सेव किए गए बिल यहाँ दिखाई देंगे।</p></div>`; return; } const groupedBills = billsToDisplay.reduce((acc, bill) => { const date = new Date(bill.date).toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' }); if (!acc[date]) { acc[date] = []; } acc[date].push(bill); return acc; }, {}); let finalHtml = ''; for (const date in groupedBills) { finalHtml += `<div class="sticky top-0 z-10 py-2" style="background-color: var(--bg-start);"><h3 class="text-sm font-bold text-gray-500">${date}</h3></div>`; groupedBills[date].forEach(bill => { const billDate = new Date(bill.date); const isCredit = bill.paymentType === 'credit'; const billDetailsHtml = bill.items.map(item => { const unitLabel = unitTextMap[item.unit] || item.unit; const totalUnits = item.quantity * item.fillingQuantity; const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); return `<div class="border-t first:border-t-0 py-2" style="border-color: var(--border-color);"><div class="flex justify-between font-semibold text-sm"><span class="product-name-text">${item.name}</span><span class="price-text">₹${(item.price * item.quantity).toFixed(2)}</span></div><div class="flex justify-between text-xs meta-text"><span>${item.quantity} × (₹${item.price}/${item.fillingQuantity} ${unitLabel})</span><span><span data-lang-key="text_total">कुल</span>: ${formattedTotalUnits} ${unitLabel}</span></div></div>`; }).join(''); finalHtml += ` <div class="modern-card cursor-pointer fade-in p-3" style="${isCredit ? 'border-left: 4px solid #ef4444;' : ''}" onclick="toggleBillDetails('${bill.id}')"><div class="flex justify-between items-center"><div><h4 class="font-semibold text-sm product-name-text">${bill.customerName || `बिल #${bill.id}`}</h4><p class="text-xs" style="color:var(--text-light)">${billDate.toLocaleTimeString('hi-IN', {hour: '2-digit', minute: '2-digit'})}</p></div><div class="text-right"><p class="font-bold price-text text-md">₹${bill.total.toFixed(2)}</p>${isCredit ? '<p class="text-xs font-bold text-red-500">उधार</p>' : ''}</div></div><div id="billDetails_${bill.id}" class="hidden mt-2 pt-2 border-t" style="border-color: var(--border-color);"><div class="text-sm space-y-1 p-2 rounded-lg" style="background-color: color-mix(in srgb, var(--text) 3%, transparent);">${billDetailsHtml}<div class="mt-2 pt-2 border-t grid grid-cols-2 sm:grid-cols-4 gap-2" style="border-color: var(--border-color);"><button onclick="loadBillFromHistory(event, '${bill.id}')" class="bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-green-600 transition-colors"><span data-lang-key="btn_load_bill">बिल लोड करें</span></button><button onclick="renameCustomerInHistory(event, '${bill.id}')" class="bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-yellow-600 transition-colors"><span data-lang-key="btn_rename">नाम बदलें</span></button><button onclick="handleDeleteHistoryItem(event, '${bill.id}')" class="bg-red-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-red-600 transition-colors"><span data-lang-key="btn_delete">डिलीट</span></button><button onclick="printOldBill(event, '${bill.id}')" class="bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors"><span data-lang-key="btn_download">प्रिंट/PDF</span></button></div></div></div></div>`; }); } historyDiv.innerHTML = finalHtml; updateDashboardStats(); }
+    function toggleBillDetails(billId) { document.getElementById(`billDetails_${billId}`).classList.toggle('hidden'); }
+    function closeNotesModal() { toggleBodyScroll(false); document.getElementById('notesModal').classList.add('hidden'); }
+    function saveNotes() { notes = document.getElementById('notesText').value; saveDataToFirebase();; if(history.state.modal === 'notes') history.back(); else closeNotesModal(); showToast('📝 नोट्स सेव हो गए!', 'success'); }
+    function showNotesModal() { toggleBodyScroll(true); toggleMenu(); document.getElementById('notesText').value = notes; document.getElementById('notesModal').classList.remove('hidden'); history.pushState({ modal: 'notes' }, '', location.href); }
+    function handleBackButton(event) { if (isScanning) { stopScanning(currentScanningSection); return; } const openModal = document.querySelector('.fixed.inset-0.z-50:not(.hidden)'); if (openModal) { if(openModal.id === 'menuDropdown'){ toggleMenu(); return; } switch (openModal.id) { case 'addProductModal': closeAddModal(); break; case 'editModal': closeEditModal(); break; case 'notesModal': closeNotesModal(); break; default: openModal.classList.add('hidden'); toggleBodyScroll(false); break; } return; } if (event.state && event.state.section) { showSection(event.state.section, false); } else { showSection('home', false); } }
+    function fetchProductDetails(barcode) { if (!barcode.trim()) return; let product = Object.values(products).find(p => p.barcode === barcode || p.manualId === barcode) || productDatabase[barcode]; if (product) { showToast('📦 प्रोडक्ट डिटेल्स मिल गए!', 'success'); document.getElementById('productName').value = product.name; document.getElementById('productPrice').value = product.price; document.getElementById('productDetails').value = product.details || ''; document.getElementById('productFillingQuantity').value = product.fillingQuantity || 1; document.getElementById('productUnit').value = product.unit || 'piece'; } }
+    function toggleLanguage() { currentLanguage = currentLanguage === 'hi' ? 'en' : 'hi'; setLanguage(currentLanguage); }
+    function setLanguage(lang) { currentLanguage = lang; localStorage.setItem('language', lang); document.documentElement.lang = lang; const langStrings = translations[lang]; document.querySelectorAll('[data-lang-key]').forEach(el => { const key = el.dataset.langKey; if (langStrings[key]) { if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { if (el.placeholder) { el.placeholder = langStrings[key]; } } else { const targetElement = el.querySelector('span[data-lang-key]') || el; const textNode = Array.from(targetElement.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0); if (textNode) { textNode.textContent = langStrings[key]; } else { targetElement.textContent = langStrings[key]; } } } }); }
+    function showCustomerSuggestions() { const input = document.getElementById('customerName'); const suggestionsDiv = document.getElementById('customerNameSuggestions'); const value = input.value.toLowerCase(); if (!value) { suggestionsDiv.classList.add('hidden'); return; } const uniqueNames = [...new Set(billHistory.map(bill => bill.customerName.trim()).filter(name => name))]; const filteredNames = uniqueNames.filter(name => name.toLowerCase().includes(value)).slice(0, 5); if (filteredNames.length > 0) { suggestionsDiv.innerHTML = filteredNames.map(name => `<div class="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700" onclick="selectCustomerName('${name}')">${name}</div>`).join(''); suggestionsDiv.classList.remove('hidden'); } else { suggestionsDiv.classList.add('hidden'); } }
+    function selectCustomerName(name) { document.getElementById('customerName').value = name; document.getElementById('customerNameSuggestions').classList.add('hidden'); }
 
-            if (!name || isNaN(totalPrice) || isNaN(fillingQuantity) || totalPrice <= 0 || fillingQuantity <= 0) {
-                showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error');
-                return;
-            }
-
-            const manualItem = {
-                id: 'manual_' + Date.now(),
-                name: name,
-                price: totalPrice,
-                quantity: 1, 
-                unit: unit,
-                fillingQuantity: fillingQuantity
-            };
-            const existingItem = billItems.find(item => 
-                item.id.startsWith('manual_') &&
-                item.name === manualItem.name && 
-                item.price === manualItem.price && 
-                item.fillingQuantity === manualItem.fillingQuantity &&
-                item.unit === manualItem.unit
-            );
-            
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                 billItems.push(manualItem);
-            }
-
-            displayBillItems();
-            updateTotal();
-            showToast('✅ आइटम बिल में जोड़ा गया!', 'success');
-            
-            if (history.state && history.state.modal) {
-                history.back();
-            } else {
-                closeManualAddModal();
-            }
-        }
-
-        function addToBill(productId, element) { const product = products[productId]; if (!product) { showToast('❌ प्रोडक्ट नहीं मिला!', 'error'); return; } const existingItem = billItems.find(item => item.id === productId); if (existingItem) { existingItem.quantity += 1; } else { billItems.push({ id: productId, name: product.name, price: product.price, quantity: 1, unit: product.unit, fillingQuantity: product.fillingQuantity }); } if (element) { element.classList.add('bg-green-300'); setTimeout(() => element.classList.remove('bg-green-300'), 400); } document.getElementById('searchProduct').value = ''; document.getElementById('clearShoppingSearch').classList.add('hidden'); document.getElementById('searchResults').classList.add('hidden'); displayBillItems(); updateTotal(); showToast('✅ प्रोडक्ट बिल में जोड़ा गया!', 'success'); }
-        function addToBillFromStore(productId, element) { addToBill(productId, element); showSection('shopping'); }
-        function displayBillItems() { const billDiv = document.getElementById('billItems'); if (billItems.length === 0) { billDiv.innerHTML = `<div class="text-center py-8 text-gray-400 flex flex-col items-center"><svg class="w-12 h-12 text-gray-300 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c.51 0 .962-.343 1.087-.835l1.823-6.812a1.5 1.5 0 00-1.423-1.884H5.318a1.5 1.5 0 00-1.423 1.884l1.823 6.812zM7.5 14.25h11.218M7.5 14.25a3 3 0 01-3-3h.008v.008h-.008v-.008zm12 0a3 3 0 01-3-3h.008v.008h-.008v-.008z" /></svg><h3 class="font-bold text-sm" data-lang-key="empty_state_bill_title">बिल अभी खाली है</h3><p class="text-xs" data-lang-key="empty_state_bill_desc">शुरू करने के लिए प्रोडक्ट जोड़ें।</p></div>`; return; } billDiv.innerHTML = billItems.map((item, index) => { const unitLabel = unitTextMap[item.unit] || item.unit; const totalUnits = item.quantity * item.fillingQuantity; const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); return `<div class="p-2 rounded-lg border fade-in" style="background-color: color-mix(in srgb, var(--text) 3%, transparent); border-color: var(--border-color);"><div class="flex justify-between items-start gap-2"><div class="flex-1"><h4 class="font-bold text-sm leading-tight product-name-text">${item.name} <span class="font-semibold meta-text text-xs">(${formattedTotalUnits} ${unitLabel})</span></h4></div><span class="font-bold text-sm text-right flex-shrink-0 price-text">₹${(item.price * item.quantity).toFixed(2)}</span></div><div class="flex justify-between items-center mt-1"><p class="text-xs" style="color: var(--text-light);">@ ₹${item.price} / ${item.fillingQuantity} ${unitLabel}</p><div class="flex items-center space-x-2"><button onclick="updateQuantity(${index}, -1)" class="w-6 h-6 bg-red-100 text-red-600 rounded-full font-bold hover:bg-red-200 transition-colors flex-shrink-0 flex items-center justify-center">-</button><span class="w-5 text-center font-bold text-sm">${item.quantity}</span><button onclick="updateQuantity(${index}, 1)" class="w-6 h-6 bg-green-100 text-green-600 rounded-full font-bold hover:bg-green-200 transition-colors flex-shrink-0 flex items-center justify-center">+</button></div></div></div>`; }).join(''); }
-        function updateQuantity(index, change) { if (!billItems[index]) return; const newQuantity = billItems[index].quantity + change; if (newQuantity < 1) { showConfirmModal( `"${billItems[index].name}" हटाएं?`, 'क्या आप वाकई इस आइटम को बिल से हटाना चाहते हैं?', () => { billItems.splice(index, 1); displayBillItems(); updateTotal(); showToast('आइटम हटा दिया गया', 'info'); } ); } else { billItems[index].quantity = newQuantity; displayBillItems(); updateTotal(); } }
-        function updateTotal() { const total = billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0); const totalEl = document.getElementById('totalAmount'); totalEl.textContent = `₹${total.toFixed(2)}`; totalEl.classList.add('highlight-total'); setTimeout(() => totalEl.classList.remove('highlight-total'), 700); }
-        function handleClearBill() { if (billItems.length > 0) { showConfirmModal('🗑️ बिल क्लियर करें?', 'क्या आप इस बिल के सभी आइटम्स को हटाना चाहते हैं?', () => { billItems = []; document.getElementById('customerName').value = ''; displayBillItems(); updateTotal(); triggerHapticFeedback(); showToast('✅ बिल क्लियर हो गया!', 'success'); }); } }
-        
-        function generateBillId(date) {
-            const d = date;
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = String(d.getFullYear());
-
-            const todayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-            const todayEnd = todayStart + (24 * 60 * 60 * 1000);
-            
-            const billsToday = billHistory.filter(b => {
-                const billTime = new Date(b.date).getTime();
-                return billTime >= todayStart && billTime < todayEnd;
-            }).length;
-
-            const sequence = String(billsToday + 1).padStart(3, '0');
-            return `${day}${month}${year}${sequence}`;
-        }
-
-        function showPaymentTypeModal(action) {
-            if (billItems.length === 0) {
-                showToast('❌ बिल में कोई आइटम नहीं है!', 'error'); return;
-            }
-            const customerNameInput = document.getElementById('customerName');
-            if (!customerNameInput.value.trim()) {
-                 showToast(translations[currentLanguage].customer_name_required, 'error');
-                 customerNameInput.focus();
-                 customerNameInput.classList.add('error');
-                 setTimeout(() => customerNameInput.classList.remove('error'), 1000);
-                 return;
-            }
-            currentBillAction = action;
-            document.getElementById('paymentTypeModal').classList.remove('hidden');
-            toggleBodyScroll(true);
-            history.pushState({ modal: 'payment' }, '', location.href);
-        }
-        function closePaymentTypeModal() {
-            document.getElementById('paymentTypeModal').classList.add('hidden');
-            toggleBodyScroll(false);
-            currentBillAction = null;
-        }
-        function handlePaymentTypeSelection(type) {
-             if (currentBillAction === 'save') {
-                executeSaveBill(type);
-             } else if (currentBillAction === 'print') {
-                executePrintBill(type);
-             }
-             if (history.state && history.state.modal === 'payment') {
-                history.back();
-            } else {
-                closePaymentTypeModal();
-            }
-        }
-        
-        function saveBill() { showPaymentTypeModal('save'); }
-        function printBill() { showPaymentTypeModal('print'); }
-        
-        function executeSaveBill(paymentType) {
-            const customerName = document.getElementById('customerName').value.trim();
-            const now = new Date();
-            const bill = {
-                id: generateBillId(now),
-                date: now.toISOString(),
-                customerName: customerName,
-                items: [...billItems],
-                total: billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                paymentType: paymentType
-            };
-            billHistory.unshift(bill);
-            billItems = [];
-            document.getElementById('customerName').value = '';
-            displayBillItems();
-            updateTotal();
-            filterAndDisplayHistory();
-            triggerHapticFeedback(100);
-            showToast('✅ बिल सेव हो गया!', 'success');
-            saveDataToFirebase();
-        }
-
-        function executePrintBill(paymentType) {
-            const customerName = document.getElementById('customerName').value.trim();
-            const bill = {
-                customerName: customerName,
-                items: billItems,
-                total: billItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                date: new Date().toISOString(),
-                id: 'Current',
-                paymentType: paymentType
-            };
-            const billHtml = generateModernBillHTML(bill);
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write(billHtml);
-                printWindow.document.close();
-                printWindow.focus();
-                // Add a slight delay for the content to render before printing
-                setTimeout(() => {
-                    try {
-                        printWindow.print();
-                    } catch (e) {
-                        showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error');
-                    }
-                }, 250);
-            } else {
-                showToast('❌ कृपया पॉप-अप को अनुमति दें', 'error');
-            }
-        }
-        
-        function generateModernBillHTML(bill) { 
-            const s = getComputedStyle(document.body); 
-            // Using fixed colors for print consistency instead of CSS variables
-            const theme = { primary: '#007AFF', secondary: '#34C759', bg_end: '#F9FAFB', card: '#FFFFFF', text: '#111827', text_light: '#6B7280', border: '#E5E7EB' }; 
-            let itemsHtml = ''; 
-            bill.items.forEach((item, index) => { 
-                const totalUnits = item.quantity * (item.fillingQuantity || 1); 
-                const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); 
-                const unitLabel = unitTextMap[item.unit] || item.unit; 
-                const rowStyle = index % 2 === 0 ? `background-color: ${theme.bg_end};` : '';
-                itemsHtml += `<tr style="${rowStyle}"><td style="padding: 10px 12px; text-align: left; border-bottom: 1px solid ${theme.border};">${item.name}</td><td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid ${theme.border};">${formattedTotalUnits} ${unitLabel}</td><td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid ${theme.border};">₹${(item.price * item.quantity).toFixed(2)}</td></tr>`; 
-            }); 
-            let paymentStatusHtml = ''; 
-            if (bill.paymentType) { 
-                const statusText = bill.paymentType === 'credit' ? 'उधार (Credit)' : 'नगद (Cash)'; 
-                const statusColor = bill.paymentType === 'credit' ? '#EF4444' : '#22C55E'; 
-                paymentStatusHtml = `<div style="text-align: right;"><p style="font-size: 0.8rem; color:${theme.text_light}; font-weight: 600;">STATUS</p><p style="font-weight: 700; font-size: 1.1rem; color:${statusColor};">${statusText}</p></div>`; 
-            } 
-            return `<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><title>Bill - ${bill.id}</title><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');body{font-family:'Inter',sans-serif;background-color:#f3f4f6;color:${theme.text};}@media print{body{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}}</style></head><body style="padding: 1rem;"><div style="max-width: 42rem; margin: auto; background-color:${theme.card}; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); padding: 2rem; border: 1px solid ${theme.border};"><div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; border-bottom: 1px solid ${theme.border};"><div style="text-align: left;"><h1 style="font-size: 1.5rem; font-weight: 700; color:${theme.primary};">${storeName}</h1><p style="color:${theme.text_light};">INVOICE</p></div><div style="text-align: right;"><p style="font-weight: 600;">बिल #${bill.id}</p><p style="font-size: 0.875rem; color:${theme.text_light};">${new Date(bill.date).toLocaleString('hi-IN')}</p></div></div><div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0;"><div style="text-align: left;"><p style="font-size: 0.8rem; color:${theme.text_light};">BILL TO</p><p style="font-weight: 600;">${bill.customerName || 'N/A'}</p></div>${paymentStatusHtml}</div><div style="width: 100%; overflow-x: auto;"><table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;"><thead><tr style="background-color: ${theme.bg_end};"><th style="padding: 8px 12px; text-align: left; font-weight: 600; color:${theme.primary}; border-bottom: 2px solid ${theme.primary};">प्रोडक्ट</th><th style="padding: 8px 12px; text-align: center; font-weight: 600; color:${theme.primary}; border-bottom: 2px solid ${theme.primary};">मात्रा</th><th style="padding: 8px 12px; text-align: right; font-weight: 600; color:${theme.primary}; border-bottom: 2px solid ${theme.primary};">कुल</th></tr></thead><tbody>${itemsHtml}</tbody></table></div><div style="display: flex; justify-content: flex-end; padding-top: 1.5rem; margin-top: 1.5rem; border-top: 1px solid ${theme.border};"><div style="width: 100%; max-width: 16rem; text-align: right;"><div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span style="color:${theme.text_light};">Subtotal</span><span>₹${bill.total.toFixed(2)}</span></div><div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.125rem; color:${theme.secondary};"><span style="font-weight: 700;">कुल राशि</span><span>₹${bill.total.toFixed(2)}</span></div></div></div><div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid ${theme.border};"><p style="font-size: 0.75rem; color:${theme.text_light};">Thank you for your visit!</p></div></div></body></html>`; 
-        }
-        
-        function printOldBill(event, billId) { event.stopPropagation(); const bill = billHistory.find(b => b.id.toString() === billId.toString()); if (!bill) return; const billHtml = generateModernBillHTML(bill); const printWindow = window.open('', '_blank'); if (printWindow) { printWindow.document.write(billHtml); printWindow.document.close(); printWindow.focus(); setTimeout(() => { try { printWindow.print(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 250); } else { showToast('❌ कृपया पॉप-अप को अनुमति दें', 'error'); } }
-        function printAllProducts() { toggleMenu(); if (Object.keys(products).length === 0) { showToast('❌ प्रिंट करने के लिए कोई प्रोडक्ट नहीं है!', 'error'); return; } const computedStyle = getComputedStyle(document.body); const themeStyle = `:root { --primary: ${computedStyle.getPropertyValue('--primary')}; --secondary: ${computedStyle.getPropertyValue('--secondary')}; --card: ${computedStyle.getPropertyValue('--card')}; --text: ${computedStyle.getPropertyValue('--text')}; --text-light: ${computedStyle.getPropertyValue('--text-light')}; --bg-start: ${computedStyle.getPropertyValue('--bg-start')}; }`; const productsHtml = Object.values(products).map((p, index) => `<tr class="border-b"><td class="p-3">${index + 1}</td><td class="p-3 font-semibold">${p.name || ''}</td><td class="p-3">₹${p.price ? p.price.toFixed(2) : '0.00'} / ${p.fillingQuantity || 1} ${unitTextMap[p.unit] || p.unit}</td><td class="p-3 font-mono text-xs">${p.barcode || 'N/A'}</td><td class="p-3 text-xs">${p.details || ''}</td></tr>`).join(''); const printContent = `<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><title>${storeName} - सभी प्रोडक्ट्स</title><script src="https://cdn.tailwindcss.com"><\/script><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); body { font-family: 'Inter', sans-serif; background-color: white !important; color: black !important; } @media print { body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body><div class="container mx-auto p-8"><div class="text-center mb-8 p-4 rounded-lg"><h1 class="text-3xl font-bold text-blue-600">${storeName}</h1><p class="text-gray-500">सभी प्रोडक्ट्स की सूची</p><p class="text-xs mt-1 text-gray-500">${new Date().toLocaleString('hi-IN')}</p></div><div class="rounded-lg shadow-md overflow-hidden border"><table class="w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-3 text-left">#</th><th class="p-3 text-left">नाम</th><th class="p-3 text-left">कीमत/यूनिट</th><th class="p-3 text-left">बारकोड</th><th class="p-3 text-left">विवरण</th></tr></thead><tbody>${productsHtml}</tbody></table></div><div class="text-center mt-6 text-sm text-gray-500">कुल प्रोडक्ट्स: ${Object.keys(products).length}</div></div></body></html>`; const printWindow = window.open('', '_blank'); printWindow.document.write(printContent); printWindow.document.close(); setTimeout(() => { try { printWindow.focus(); printWindow.print(); printWindow.close(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 500); }
-
-        function handleEditStoreName() { toggleMenu(); showPromptModal('स्टोर का नाम बदलें', 'कृपया अपने स्टोर का नया नाम दर्ज करें।', storeName, (newName) => { if (newName && newName.trim()) { storeName = newName.trim(); document.getElementById('storeName').textContent = storeName; document.getElementById('mobileStoreName').textContent = storeName; saveDataToFirebase(); showToast('✅ स्टोर का नाम अपडेट हो गया!', 'success'); } }); }
-        function closeEditModal() { toggleBodyScroll(false); document.getElementById('editModal').classList.add('hidden'); currentEditingProduct = null; }
-        function searchProducts(query) {
-            const resultsDiv = document.getElementById('searchResults');
-            const trimmedQuery = query.trim();
-            if (!trimmedQuery) {
-                resultsDiv.classList.add('hidden');
-                return;
-            }
-            const lowerCaseQuery = trimmedQuery.toLowerCase();
-            const hinglishQuery = transliterateHinglish(lowerCaseQuery);
-
-            const results = Object.values(products).filter(p => 
-                p.name.toLowerCase().includes(lowerCaseQuery) ||
-                (hinglishQuery && p.name.includes(hinglishQuery)) ||
-                (p.barcode && p.barcode.toLowerCase().includes(lowerCaseQuery)) ||
-                (p.manualId && p.manualId.toLowerCase().includes(lowerCaseQuery)) ||
-                p.id.toString().includes(lowerCaseQuery)
-            ).slice(0, 5);
-            if (results.length === 0) {
-                resultsDiv.innerHTML = '<div class="text-center py-3 text-gray-500 text-sm">कोई प्रोडक्ट नहीं मिला</div>';
-                resultsDiv.classList.remove('hidden');
-                return;
-            }
-            resultsDiv.innerHTML = results.map(p => ` <div class="p-2 rounded-lg border cursor-pointer hover:border-[var(--primary)] transition-all" onclick="addToBill('${p.id}', this)" style="background-color: color-mix(in srgb, var(--text) 3%, transparent); border-color: var(--border-color);"><div class="font-semibold text-sm product-name-text">${p.name}</div><div class="price-text font-bold text-sm">₹${p.price} <span class="text-xs meta-text"> / ${p.fillingQuantity || 1} ${unitTextMap[p.unit] || p.unit}</span></div></div>`).join('');
-            resultsDiv.classList.remove('hidden');
-        }
-        function handleDeleteHistoryItem(event, billId) { event.stopPropagation(); showConfirmModal('🗑️ बिल डिलीट करें?', 'क्या आप वाकई इस बिल को हिस्ट्री से डिलीट करना चाहते हैं?', () => { const index = billHistory.findIndex(b => b.id.toString() === billId.toString()); if (index > -1) { billHistory.splice(index, 1); filterAndDisplayHistory(); showToast('✅ बिल डिलीट हो गया!', 'success'); triggerHapticFeedback();saveDataToFirebase(); } }); }
-        
-        function renameCustomerInHistory(event, billId) {
-            event.stopPropagation();
-            const billIndex = billHistory.findIndex(b => b.id.toString() === billId.toString());
-            if (billIndex === -1) return;
-
-            const currentName = billHistory[billIndex].customerName;
-
-            showPromptModal(
-                translations[currentLanguage].rename_customer_title || 'Rename Customer',
-                translations[currentLanguage].rename_customer_message || 'Enter the new name for the customer:',
-                currentName,
-                (newName) => {
-                    if (newName && newName.trim()) {
-                        billHistory[billIndex].customerName = newName.trim();
-                        filterAndDisplayHistory();
-                        showToast(translations[currentLanguage].customer_renamed_success || '✅ Customer name updated!', 'success');
-                        saveDataToFirebase();
-                    }
-                }
-            );
-        }
-
-        function loadBillFromHistory(event, billId) {
-            event.stopPropagation();
-            const bill = billHistory.find(b => b.id.toString() === billId.toString());
-            if (!bill) return;
-
-            showConfirmModal(
-                translations[currentLanguage].confirm_load_bill_title || 'Load Bill?',
-                translations[currentLanguage].confirm_load_bill_message || 'This will replace the current bill. Do you want to continue?',
-                () => {
-                    billItems = JSON.parse(JSON.stringify(bill.items)); // Deep copy to avoid modifying history
-                    document.getElementById('customerName').value = bill.customerName;
-                    showSection('shopping');
-                    displayBillItems();
-                    updateTotal();
-                    showToast(translations[currentLanguage].bill_loaded_success || '✅ Bill loaded successfully!', 'success');
-                },
-                'bg-green-500' 
-            );
-        }
-
-        function filterAndDisplayHistory() {
-            const searchTerm = document.getElementById('historySearchInput').value.toLowerCase();
-            const hinglishTerm = transliterateHinglish(searchTerm);
-            const searchDate = document.getElementById('historyDateInput').value;
-            let filtered = billHistory;
-
-            if (searchTerm) {
-                filtered = filtered.filter(bill =>
-                    bill.customerName.toLowerCase().includes(searchTerm) || (hinglishTerm && bill.customerName.includes(hinglishTerm)) ||
-                    bill.items.some(item => item.name.toLowerCase().includes(searchTerm) || (hinglishTerm && item.name.includes(hinglishTerm)))
-                );
-            }
-
-            if (searchDate) {
-                 filtered = filtered.filter(bill => {
-                    const billDate = new Date(bill.date);
-                    const billYear = billDate.getFullYear();
-                    const billMonth = String(billDate.getMonth() + 1).padStart(2, '0');
-                    const billDay = String(billDate.getDate()).padStart(2, '0');
-                    const billDateString = `${billYear}-${billMonth}-${billDay}`;
-                    return billDateString === searchDate;
-                });
-            }
-
-            displayBillHistory(filtered);
-        }
-        function displayBillHistory(billsToDisplay = billHistory) {
-            const historyDiv = document.getElementById('billHistory');
-            historyDiv.className = 'space-y-2';
-            if (billsToDisplay.length === 0) {
-                historyDiv.innerHTML = `<div class="text-center py-16 text-gray-400 flex flex-col items-center"><svg class="w-16 h-16 text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg><h3 class="font-bold text-md" data-lang-key="empty_state_history_title">कोई बिल हिस्ट्री नहीं है</h3><p class="text-sm" data-lang-key="empty_state_history_desc">सेव किए गए बिल यहाँ दिखाई देंगे।</p></div>`;
-                return;
-            }
-            
-            const groupedBills = billsToDisplay.reduce((acc, bill) => {
-                const date = new Date(bill.date).toLocaleDateString('hi-IN', { year: 'numeric', month: 'long', day: 'numeric' });
-                if (!acc[date]) {
-                    acc[date] = [];
-                }
-                acc[date].push(bill);
-                return acc;
-            }, {});
-
-
-            let finalHtml = '';
-            for (const date in groupedBills) {
-                 finalHtml += `<div class="sticky top-0 z-10 py-2" style="background-color: var(--bg-start);"><h3 class="text-sm font-bold text-gray-500">${date}</h3></div>`;
-                 groupedBills[date].forEach(bill => {
-                    const billDate = new Date(bill.date);
-                    const isCredit = bill.paymentType === 'credit';
-                    const billDetailsHtml = bill.items.map(item => { const unitLabel = unitTextMap[item.unit] || item.unit; const totalUnits = item.quantity * item.fillingQuantity; const formattedTotalUnits = parseFloat(totalUnits.toFixed(2).replace(/\.00$/, '')); return `<div class="border-t first:border-t-0 py-2" style="border-color: var(--border-color);"><div class="flex justify-between font-semibold text-sm"><span class="product-name-text">${item.name}</span><span class="price-text">₹${(item.price * item.quantity).toFixed(2)}</span></div><div class="flex justify-between text-xs meta-text"><span>${item.quantity} × (₹${item.price}/${item.fillingQuantity} ${unitLabel})</span><span><span data-lang-key="text_total">कुल</span>: ${formattedTotalUnits} ${unitLabel}</span></div></div>`; }).join('');
-                    finalHtml += ` <div class="modern-card cursor-pointer fade-in p-3" style="${isCredit ? 'border-left: 4px solid #ef4444;' : ''}" onclick="toggleBillDetails('${bill.id}')"><div class="flex justify-between items-center"><div><h4 class="font-semibold text-sm product-name-text">${bill.customerName || `बिल #${bill.id}`}</h4><p class="text-xs" style="color:var(--text-light)">${billDate.toLocaleTimeString('hi-IN', {hour: '2-digit', minute: '2-digit'})}</p></div><div class="text-right"><p class="font-bold price-text text-md">₹${bill.total.toFixed(2)}</p>${isCredit ? '<p class="text-xs font-bold text-red-500">उधार</p>' : ''}</div></div><div id="billDetails_${bill.id}" class="hidden mt-2 pt-2 border-t" style="border-color: var(--border-color);"><div class="text-sm space-y-1 p-2 rounded-lg" style="background-color: color-mix(in srgb, var(--text) 3%, transparent);">${billDetailsHtml}<div class="mt-2 pt-2 border-t grid grid-cols-2 sm:grid-cols-4 gap-2" style="border-color: var(--border-color);"><button onclick="loadBillFromHistory(event, '${bill.id}')" class="bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-green-600 transition-colors"><span data-lang-key="btn_load_bill">बिल लोड करें</span></button><button onclick="renameCustomerInHistory(event, '${bill.id}')" class="bg-yellow-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-yellow-600 transition-colors"><span data-lang-key="btn_rename">नाम बदलें</span></button><button onclick="handleDeleteHistoryItem(event, '${bill.id}')" class="bg-red-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-red-600 transition-colors"><span data-lang-key="btn_delete">डिलीट</span></button><button onclick="printOldBill(event, '${bill.id}')" class="bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold hover:bg-blue-600 transition-colors"><span data-lang-key="btn_download">प्रिंट/PDF</span></button></div></div></div></div>`;
-                 });
-            }
-            historyDiv.innerHTML = finalHtml;
-            updateDashboardStats();
-        }
-        function toggleBillDetails(billId) { document.getElementById(`billDetails_${billId}`).classList.toggle('hidden'); }
-        function exportData() { toggleMenu(); const data = { storeName, products, billHistory, notes, exportDate: new Date().toISOString() }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], {type: 'application/json'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `${storeName}_backup_${new Date().toISOString().split('T')[0]}.json`; link.click(); showToast('✅ डेटा एक्सपोर्ट हो गया!', 'success'); }
-       function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); showConfirmModal('📥 डेटा इम्पोर्ट करें?', 'क्या आप वाकई डेटा इम्पोर्ट करना चाहते हैं? यह मौजूदा डेटा को बदल देगा।', () => { if (data.storeName) storeName = data.storeName; if (data.products) products = data.products; if (data.billHistory) billHistory = data.billHistory; if (data.notes) notes = data.notes; document.getElementById('storeName').textContent = storeName; document.getElementById('mobileStoreName').textContent = storeName; searchAndSortProducts(); filterAndDisplayHistory(); saveDataToFirebase().then(() => {showToast('✅ डेटा सफलतापूर्वक इम्पोर्ट हो गया!', 'success'); }, 'secondary-bg');} catch (error) { showToast('❌ गलत फाइल फॉर्मेट!', 'error'); } }; reader.readAsText(file); event.target.value = ''; }
-        function closeNotesModal() { toggleBodyScroll(false); document.getElementById('notesModal').classList.add('hidden'); }
-        function saveNotes() { notes = document.getElementById('notesText').value; saveDataToFirebase();; if(history.state.modal === 'notes') history.back(); else closeNotesModal(); showToast('📝 नोट्स सेव हो गए!', 'success'); }
-        function showNotesModal() { toggleBodyScroll(true); toggleMenu(); document.getElementById('notesText').value = notes; document.getElementById('notesModal').classList.remove('hidden'); history.pushState({ modal: 'notes' }, '', location.href); }
-        function handleBackButton(event) { if (isScanning) { stopScanning(currentScanningSection); return; } const openModal = document.querySelector('.fixed.inset-0.z-50:not(.hidden)'); if (openModal) { if(openModal.id === 'menuDropdown'){ toggleMenu(); return; } switch (openModal.id) { case 'addProductModal': closeAddModal(); break; case 'editModal': closeEditModal(); break; case 'notesModal': closeNotesModal(); break; default: openModal.classList.add('hidden'); toggleBodyScroll(false); break; } return; } if (event.state && event.state.section) { showSection(event.state.section, false); } else { showSection('home', false); } }
-        function fetchProductDetails(barcode) { 
-            if (!barcode.trim()) return; 
-            let product = Object.values(products).find(p => p.barcode === barcode || p.manualId === barcode) || productDatabase[barcode];
-            if (product) { 
-                showToast('📦 प्रोडक्ट डिटेल्स मिल गए!', 'success');
-                document.getElementById('productName').value = product.name; 
-                document.getElementById('productPrice').value = product.price; 
-                document.getElementById('productDetails').value = product.details || ''; 
-                document.getElementById('productFillingQuantity').value = product.fillingQuantity || 1; 
-                document.getElementById('productUnit').value = product.unit || 'piece'; 
-            }
-        }
-        function toggleLanguage() { currentLanguage = currentLanguage === 'hi' ? 'en' : 'hi'; setLanguage(currentLanguage); }
-          function setLanguage(lang) { currentLanguage = lang; localStorage.setItem('language', lang); document.documentElement.lang = lang; const langStrings = translations[lang]; document.querySelectorAll('[data-lang-key]').forEach(el => { const key = el.dataset.langKey; if (langStrings[key]) { if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') { if (el.placeholder) { el.placeholder = langStrings[key]; } } else { const targetElement = el.querySelector('span[data-lang-key]') || el; const textNode = Array.from(targetElement.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0); if (textNode) { textNode.textContent = langStrings[key]; } else { targetElement.textContent = langStrings[key]; } } } }); }
-        
-        function showCustomerSuggestions() {
-            const input = document.getElementById('customerName');
-            const suggestionsDiv = document.getElementById('customerNameSuggestions');
-            const value = input.value.toLowerCase();
-
-            if (!value) {
-                suggestionsDiv.classList.add('hidden');
-                return;
-            }
-
-            const uniqueNames = [...new Set(billHistory.map(bill => bill.customerName.trim()).filter(name => name))];
-            const filteredNames = uniqueNames.filter(name => name.toLowerCase().includes(value)).slice(0, 5);
-            
-            if (filteredNames.length > 0) {
-                suggestionsDiv.innerHTML = filteredNames.map(name => 
-                    `<div class="p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700" onclick="selectCustomerName('${name}')">${name}</div>`
-                ).join('');
-                suggestionsDiv.classList.remove('hidden');
-            } else {
-                suggestionsDiv.classList.add('hidden');
-            }
-        }
-
-        function selectCustomerName(name) {
-            document.getElementById('customerName').value = name;
-            document.getElementById('customerNameSuggestions').classList.add('hidden');
-        }
-
-    </script>
+</script>
 </body>
 </html>
