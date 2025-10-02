@@ -596,23 +596,10 @@
         if (user) {
             // यूज़र लॉग इन है
             userId = user.uid;
-            await loadDataFromFirebase(); // डेटा लोड करें
+            await loadDataFromFirebase(); 
+        }
             
-            // डेटा लोड होने के बाद UI को अपडेट करें
-            document.getElementById('storeName').textContent = storeName;
-            document.getElementById('mobileStoreName').textContent = storeName;
-            setLanguage(currentLanguage);
-            searchAndSortProducts();
-            filterAndDisplayHistory();
-            updateDashboardStats();
-
-            // ऐप को इनिशियलाइज़ करने वाला बाकी का कोड यहाँ रखें
-            history.replaceState({ section: 'home' }, '', '#home');
-            window.addEventListener('popstate', handleBackButton);
-            const initialSection = location.hash.substring(1) || 'home';
-            showSection(initialSection, false);
-
-        } else {
+         else {
             // कोई यूज़र लॉग इन नहीं है, तो एनोनिमस रूप से साइन इन करें
             auth.signInAnonymously().catch((error) => {
                 console.error("Anonymous sign-in failed:", error);
@@ -851,11 +838,11 @@
 
             if (!name || isNaN(price) || isNaN(fillingQuantity) || fillingQuantity <= 0) { 
                 showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return;
-                saveDataToFirebase(); // <-- यह लाइन जोड़ें
+              
             }
             if (!manualId && !barcode) {
                 showToast('❌ कृपया बारकोड स्कैन करें या मैन्युअल ID डालें', 'error'); return;
-                saveDataToFirebase(); // <-- यह लाइन जोड़ें
+             
             }
 
             const productId = manualId || barcode; // Prioritize Manual ID
@@ -972,9 +959,10 @@
             triggerHapticFeedback(); 
             if (history.state && history.state.modal) { history.back(); } else { closeEditModal(); } 
             searchAndSortProducts(); 
-            showToast('✅ प्रोडक्ट अपडेट हो गया!', 'success'); 
+            showToast('✅ प्रोडक्ट अपडेट हो गया!', 'success');
+            saveDataToFirebase();
         }
-        function handleDeleteProduct(productId) { showConfirmModal('🗑️ प्रोडक्ट डिलीट करें?', 'क्या आप वाकई इस प्रोडक्ट को डिलीट करना चाहते हैं? यह एक्शन वापस नहीं लिया जा सकता।', () => { delete products[productId]; triggerHapticFeedback(); searchAndSortProducts(); showToast('✅ प्रोडक्ट डिलीट हो गया!', 'success'); }); }
+        function handleDeleteProduct(productId) { showConfirmModal('🗑️ प्रोडक्ट डिलीट करें?', 'क्या आप वाकई इस प्रोडक्ट को डिलीट करना चाहते हैं? यह एक्शन वापस नहीं लिया जा सकता।', () => { delete products[productId]; triggerHapticFeedback(); searchAndSortProducts(); showToast('✅ प्रोडक्ट डिलीट हो गया!', 'success'); saveDataToFirebase();}); }
         function displayDashboardScanResult(barcode) { 
             const resultDiv = document.getElementById('dashboardScanResult'); 
             const product = Object.values(products).find(p => p.barcode === barcode || p.manualId === barcode);
@@ -1121,6 +1109,7 @@
             filterAndDisplayHistory();
             triggerHapticFeedback(100);
             showToast('✅ बिल सेव हो गया!', 'success');
+            saveDataToFirebase();
         }
 
         function executePrintBill(paymentType) {
@@ -1176,7 +1165,7 @@
         function printOldBill(event, billId) { event.stopPropagation(); const bill = billHistory.find(b => b.id.toString() === billId.toString()); if (!bill) return; const billHtml = generateModernBillHTML(bill); const printWindow = window.open('', '_blank'); if (printWindow) { printWindow.document.write(billHtml); printWindow.document.close(); printWindow.focus(); setTimeout(() => { try { printWindow.print(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 250); } else { showToast('❌ कृपया पॉप-अप को अनुमति दें', 'error'); } }
         function printAllProducts() { toggleMenu(); if (Object.keys(products).length === 0) { showToast('❌ प्रिंट करने के लिए कोई प्रोडक्ट नहीं है!', 'error'); return; } const computedStyle = getComputedStyle(document.body); const themeStyle = `:root { --primary: ${computedStyle.getPropertyValue('--primary')}; --secondary: ${computedStyle.getPropertyValue('--secondary')}; --card: ${computedStyle.getPropertyValue('--card')}; --text: ${computedStyle.getPropertyValue('--text')}; --text-light: ${computedStyle.getPropertyValue('--text-light')}; --bg-start: ${computedStyle.getPropertyValue('--bg-start')}; }`; const productsHtml = Object.values(products).map((p, index) => `<tr class="border-b"><td class="p-3">${index + 1}</td><td class="p-3 font-semibold">${p.name || ''}</td><td class="p-3">₹${p.price ? p.price.toFixed(2) : '0.00'} / ${p.fillingQuantity || 1} ${unitTextMap[p.unit] || p.unit}</td><td class="p-3 font-mono text-xs">${p.barcode || 'N/A'}</td><td class="p-3 text-xs">${p.details || ''}</td></tr>`).join(''); const printContent = `<!DOCTYPE html><html lang="hi"><head><meta charset="UTF-8"><title>${storeName} - सभी प्रोडक्ट्स</title><script src="https://cdn.tailwindcss.com"><\/script><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'); body { font-family: 'Inter', sans-serif; background-color: white !important; color: black !important; } @media print { body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }</style></head><body><div class="container mx-auto p-8"><div class="text-center mb-8 p-4 rounded-lg"><h1 class="text-3xl font-bold text-blue-600">${storeName}</h1><p class="text-gray-500">सभी प्रोडक्ट्स की सूची</p><p class="text-xs mt-1 text-gray-500">${new Date().toLocaleString('hi-IN')}</p></div><div class="rounded-lg shadow-md overflow-hidden border"><table class="w-full text-sm"><thead class="bg-gray-100"><tr><th class="p-3 text-left">#</th><th class="p-3 text-left">नाम</th><th class="p-3 text-left">कीमत/यूनिट</th><th class="p-3 text-left">बारकोड</th><th class="p-3 text-left">विवरण</th></tr></thead><tbody>${productsHtml}</tbody></table></div><div class="text-center mt-6 text-sm text-gray-500">कुल प्रोडक्ट्स: ${Object.keys(products).length}</div></div></body></html>`; const printWindow = window.open('', '_blank'); printWindow.document.write(printContent); printWindow.document.close(); setTimeout(() => { try { printWindow.focus(); printWindow.print(); printWindow.close(); } catch (e) { showToast('❌ प्रिंट पॉप-अप ब्लॉक हो गया', 'error'); } }, 500); }
 
-        function handleEditStoreName() { toggleMenu(); showPromptModal('स्टोर का नाम बदलें', 'कृपया अपने स्टोर का नया नाम दर्ज करें।', storeName, (newName) => { if (newName && newName.trim()) { storeName = newName.trim(); document.getElementById('storeName').textContent = storeName; document.getElementById('mobileStoreName').textContent = storeName; localStorage.setItem('storeName', storeName); showToast('✅ स्टोर का नाम अपडेट हो गया!', 'success'); } }); }
+        function handleEditStoreName() { toggleMenu(); showPromptModal('स्टोर का नाम बदलें', 'कृपया अपने स्टोर का नया नाम दर्ज करें।', storeName, (newName) => { if (newName && newName.trim()) { storeName = newName.trim(); document.getElementById('storeName').textContent = storeName; document.getElementById('mobileStoreName').textContent = storeName; saveDataToFirebase(); showToast('✅ स्टोर का नाम अपडेट हो गया!', 'success'); } }); }
         function closeEditModal() { toggleBodyScroll(false); document.getElementById('editModal').classList.add('hidden'); currentEditingProduct = null; }
         function searchProducts(query) {
             const resultsDiv = document.getElementById('searchResults');
@@ -1203,7 +1192,7 @@
             resultsDiv.innerHTML = results.map(p => ` <div class="p-2 rounded-lg border cursor-pointer hover:border-[var(--primary)] transition-all" onclick="addToBill('${p.id}', this)" style="background-color: color-mix(in srgb, var(--text) 3%, transparent); border-color: var(--border-color);"><div class="font-semibold text-sm product-name-text">${p.name}</div><div class="price-text font-bold text-sm">₹${p.price} <span class="text-xs meta-text"> / ${p.fillingQuantity || 1} ${unitTextMap[p.unit] || p.unit}</span></div></div>`).join('');
             resultsDiv.classList.remove('hidden');
         }
-        function handleDeleteHistoryItem(event, billId) { event.stopPropagation(); showConfirmModal('🗑️ बिल डिलीट करें?', 'क्या आप वाकई इस बिल को हिस्ट्री से डिलीट करना चाहते हैं?', () => { const index = billHistory.findIndex(b => b.id.toString() === billId.toString()); if (index > -1) { billHistory.splice(index, 1); filterAndDisplayHistory(); showToast('✅ बिल डिलीट हो गया!', 'success'); triggerHapticFeedback(); } }); }
+        function handleDeleteHistoryItem(event, billId) { event.stopPropagation(); showConfirmModal('🗑️ बिल डिलीट करें?', 'क्या आप वाकई इस बिल को हिस्ट्री से डिलीट करना चाहते हैं?', () => { const index = billHistory.findIndex(b => b.id.toString() === billId.toString()); if (index > -1) { billHistory.splice(index, 1); filterAndDisplayHistory(); showToast('✅ बिल डिलीट हो गया!', 'success'); triggerHapticFeedback();saveDataToFirebase(); } }); }
         
         function renameCustomerInHistory(event, billId) {
             event.stopPropagation();
@@ -1221,6 +1210,7 @@
                         billHistory[billIndex].customerName = newName.trim();
                         filterAndDisplayHistory();
                         showToast(translations[currentLanguage].customer_renamed_success || '✅ Customer name updated!', 'success');
+                        saveDataToFirebase();
                     }
                 }
             );
@@ -1307,7 +1297,7 @@
         function exportData() { toggleMenu(); const data = { storeName, products, billHistory, notes, exportDate: new Date().toISOString() }; const dataStr = JSON.stringify(data, null, 2); const blob = new Blob([dataStr], {type: 'application/json'}); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `${storeName}_backup_${new Date().toISOString().split('T')[0]}.json`; link.click(); showToast('✅ डेटा एक्सपोर्ट हो गया!', 'success'); }
        function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); showConfirmModal('📥 डेटा इम्पोर्ट करें?', 'क्या आप वाकई डेटा इम्पोर्ट करना चाहते हैं? यह मौजूदा डेटा को बदल देगा।', () => { if (data.storeName) storeName = data.storeName; if (data.products) products = data.products; if (data.billHistory) billHistory = data.billHistory; if (data.notes) notes = data.notes; document.getElementById('storeName').textContent = storeName; document.getElementById('mobileStoreName').textContent = storeName; searchAndSortProducts(); filterAndDisplayHistory(); showToast('✅ डेटा सफलतापूर्वक इम्पोर्ट हो गया!', 'success'); }, 'secondary-bg');} catch (error) { showToast('❌ गलत फाइल फॉर्मेट!', 'error'); } }; reader.readAsText(file); event.target.value = ''; }
         function closeNotesModal() { toggleBodyScroll(false); document.getElementById('notesModal').classList.add('hidden'); }
-        function saveNotes() { notes = document.getElementById('notesText').value; localStorage.setItem('notes', notes); if(history.state.modal === 'notes') history.back(); else closeNotesModal(); showToast('📝 नोट्स सेव हो गए!', 'success'); }
+        function saveNotes() { notes = document.getElementById('notesText').value; saveDataToFirebase();; if(history.state.modal === 'notes') history.back(); else closeNotesModal(); showToast('📝 नोट्स सेव हो गए!', 'success'); }
         function showNotesModal() { toggleBodyScroll(true); toggleMenu(); document.getElementById('notesText').value = notes; document.getElementById('notesModal').classList.remove('hidden'); history.pushState({ modal: 'notes' }, '', location.href); }
         function handleBackButton(event) { if (isScanning) { stopScanning(currentScanningSection); return; } const openModal = document.querySelector('.fixed.inset-0.z-50:not(.hidden)'); if (openModal) { if(openModal.id === 'menuDropdown'){ toggleMenu(); return; } switch (openModal.id) { case 'addProductModal': closeAddModal(); break; case 'editModal': closeEditModal(); break; case 'notesModal': closeNotesModal(); break; default: openModal.classList.add('hidden'); toggleBodyScroll(false); break; } return; } if (event.state && event.state.section) { showSection(event.state.section, false); } else { showSection('home', false); } }
         function fetchProductDetails(barcode) { 
