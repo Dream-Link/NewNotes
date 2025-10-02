@@ -701,6 +701,29 @@ document.addEventListener('DOMContentLoaded', function() {
         showToast('❌ डेटा सिंक नहीं हो सका!', 'error');
     }
 }
+        async function loadDataFromFirebase() {
+    if (!userId) return;
+
+    const userDocRef = db.collection('userData').doc(userId);
+    try {
+        const doc = await userDocRef.get();
+        if (doc.exists) {
+            const data = doc.data();
+            products = data.products || {};
+            billHistory = data.billHistory || [];
+            storeName = data.storeName || 'मेरा स्टोर';
+            notes = data.notes || '';
+            console.log("Data loaded from Firebase.");
+            showToast('☁️ डेटा सफलतापूर्वक सिंक हुआ!', 'success');
+        } else {
+            console.log("New user, no data found in Firebase.");
+            showToast('👋 आपका स्वागत है! डेटा सिंक हो रहा है।', 'info');
+        }
+    } catch (error) {
+        console.error("Error loading data from Firebase: ", error);
+        showToast('❌ डेटा लोड नहीं हो सका!', 'error');
+    }
+}
         function toggleMenu() { 
             const menu = document.getElementById('menuDropdown'); 
             const menuContent = document.getElementById('menuContent');
