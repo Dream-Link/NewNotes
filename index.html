@@ -10,6 +10,9 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <style>
         /* --- Google Font --- */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -483,14 +486,11 @@
     
     <script>
         // Global variables and translations
-        let products = JSON.parse(localStorage.getItem('products')) || {};
+      
         let billItems = [];
-        let billHistory = JSON.parse(localStorage.getItem('billHistory')) || [];
-        let storeName = localStorage.getItem('storeName') || 'मेरा स्टोर';
         let currentEditingProduct = null;
         let html5QrCode = null;
         let isScanning = false;
-        let notes = localStorage.getItem('notes') || '';
         let flashlightEnabled = false;
         let currentSection = 'home';
         let currentScanningSection = null;
@@ -499,6 +499,30 @@
         let storeView = localStorage.getItem('storeView') || 'list';
         let isStoreEditMode = false;
         let currentBillAction = null; // 'save' or 'print'
+            // Global variables and translations
+    let products = {}; // इसे खाली ऑब्जेक्ट से शुरू करें
+    let billHistory = []; // इसे खाली ऐरे से शुरू करें
+    let storeName = 'मेरा स्टोर';
+    let notes = '';
+
+    let userId = null; // यूज़र की ID स्टोर करने के लिए नया वेरिएबल
+
+    // --- यहाँ Firebase को Initialize करें ---
+  const firebaseConfig = {
+  apiKey: "AIzaSyDz15Hn7COJQ9SGIfEDD8M1dvtJMrDBh4I",
+  authDomain: "smart-store-2dc47.firebaseapp.com",
+  projectId: "smart-store-2dc47",
+  storageBucket: "smart-store-2dc47.firebasestorage.app",
+  messagingSenderId: "406021554382",
+  appId: "1:406021554382:web:e3d9cc701bdaf6d93f909f",
+  measurementId: "G-WFEPQVLQMY"
+};
+     
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(); // Firestore डेटाबेस का इंस्टेंस
+    const auth = firebase.auth();   // Authentication का इंस्टेंस
 
         const unitTextMap = { 'piece': 'नग', 'packet': 'पैकेट', 'gram': 'ग्राम', 'kg': 'कि.ग्रा.', 'litre': 'लीटर', 'ml': 'मि.ली.', 'dozen': 'दर्जन', 'box': 'बॉक्स' };
         const productDatabase = { '8901030895566': { name: 'मैगी नूडल्स', price: 12, details: '2 मिनट नूडल्स', fillingQuantity: 1, unit: 'packet' }, '8901030895573': { name: 'लेज चिप्स', price: 20, details: 'आलू के चिप्स', fillingQuantity: 50, unit: 'gram' }, '8901030895580': { name: 'कोका कोला', price: 40, details: '600ml बोतल', fillingQuantity: 600, unit: 'ml'}, };
@@ -567,6 +591,88 @@
 
 
         document.addEventListener('DOMContentLoaded', function() { 
+            // --- Firebase Authentication और Data Loading ---
+    auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            // यूज़र लॉग इन है
+            userId = user.uid;
+            await loadDataFromFirebase(); // डेटा लोड करें
+            
+            // डेटा लोड होने के बाद UI को अपडेट करें
+            document.getElementById('storeName').textContent = storeName;
+            document.getElementById('mobileStoreName').textContent = storeName;
+            setLanguage(currentLanguage);
+            searchAndSortProducts();
+            filterAndDisplayHistory();
+            updateDashboardStats();
+
+            // ऐप को इनिशियलाइज़ करने वाला बाकी का कोड यहाँ रखें
+            history.replaceState({ section: 'home' }, '', '#home');
+            window.addEventListener('popstate', handleBackButton);
+            const initialSection = location.hash.substring(1) || 'home';
+            showSection(initialSection, false);
+
+        } else {
+            // कोई यूज़र लॉग इन नहीं है, तो एनोनिमस रूप से साइन इन करें
+            auth.signInAnonymously().catch((error) => {
+                console.error("Anonymous sign-in failed:", error);
+            });
+        }
+    });
+            async function loadDataFromFirebase() {
+    if (!userId) return;
+
+    const userDocRef = db.collection('userData').doc(userId);
+    try {
+        const doc = await userDocRef.get();
+        if (doc.exists) {
+            const data = doc.data();
+            products = data.products || {};
+            billHistory = data.billHistory || [];
+            storeName = data.storeName || 'मेरा स्टोर';
+            notes = data.notes || '';
+            console.log("Data loaded from Firebase.");
+        } else {
+            // यह एक नया यूज़र है, कोई डेटा मौजूद नहीं है
+            console.log("New user, no data found in Firebase.");
+        }
+    } catch (error) {
+        console.error("Error loading data from Firebase: ", error);
+        showToast('❌ डेटा लोड नहीं हो सका!', 'error');
+    }
+}
+            function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            showConfirmModal('📥 डेटा इम्पोर्ट करें?', 'क्या आप वाकई डेटा इम्पोर्ट करना चाहते हैं? यह मौजूदा डेटा को बदल देगा।', () => {
+                if (data.storeName) storeName = data.storeName;
+                if (data.products) products = data.products;
+                if (data.billHistory) billHistory = data.billHistory;
+                if (data.notes) notes = data.notes;
+                
+                // UI को अपडेट करें
+                document.getElementById('storeName').textContent = storeName;
+                document.getElementById('mobileStoreName').textContent = storeName;
+                searchAndSortProducts();
+                filterAndDisplayHistory();
+
+                // इम्पोर्ट किए गए डेटा को Firebase में सेव करें
+                saveDataToFirebase().then(() => {
+                    showToast('✅ डेटा सफलतापूर्वक इम्पोर्ट और सिंक हो गया!', 'success');
+                });
+                
+            }, 'secondary-bg');
+        } catch (error) {
+            showToast('❌ गलत फाइल फॉर्मेट!', 'error');
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
             // Theme initialization
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
@@ -643,7 +749,23 @@
         function showManualAddModal() { toggleBodyScroll(true); document.getElementById('manualItemName').value = ''; document.getElementById('manualItemPrice').value = ''; document.getElementById('manualItemQuantity').value = '1'; document.getElementById('manualItemUnit').value = 'piece'; document.getElementById('manualAddModal').classList.remove('hidden'); history.pushState({ modal: 'manualAdd' }, '', location.href); }
         function closeManualAddModal() { toggleBodyScroll(false); document.getElementById('manualAddModal').classList.add('hidden'); }
 
-        function autoSave() { setInterval(() => { localStorage.setItem('products', JSON.stringify(products)); localStorage.setItem('billHistory', JSON.stringify(billHistory)); localStorage.setItem('storeName', storeName); localStorage.setItem('notes', notes); localStorage.setItem('language', currentLanguage); }, 3000); }
+       async function saveDataToFirebase() {
+    if (!userId) return; // अगर यूज़र लॉग इन नहीं है तो कुछ न करें
+
+    try {
+        const userDocRef = db.collection('userData').doc(userId);
+        await userDocRef.set({
+            products: products,
+            billHistory: billHistory,
+            storeName: storeName,
+            notes: notes,
+            lastUpdated: new Date()
+        }, { merge: true }); // merge: true यह सुनिश्चित करता है कि हम पूरे डॉक्यूमेंट को ओवरराइट न करें
+    } catch (error) {
+        console.error("Error saving data to Firebase: ", error);
+        showToast('❌ डेटा सिंक नहीं हो सका!', 'error');
+    }
+}
         function toggleMenu() { 
             const menu = document.getElementById('menuDropdown'); 
             const menuContent = document.getElementById('menuContent');
@@ -728,21 +850,25 @@
             const unit = document.getElementById('productUnit').value; 
 
             if (!name || isNaN(price) || isNaN(fillingQuantity) || fillingQuantity <= 0) { 
-                showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return; 
+                showToast('❌ कृपया सही नाम, कीमत और मात्रा डालें', 'error'); return;
+                saveDataToFirebase(); // <-- यह लाइन जोड़ें
             }
             if (!manualId && !barcode) {
                 showToast('❌ कृपया बारकोड स्कैन करें या मैन्युअल ID डालें', 'error'); return;
+                saveDataToFirebase(); // <-- यह लाइन जोड़ें
             }
 
             const productId = manualId || barcode; // Prioritize Manual ID
             if(products[productId]){ 
                 showToast('❌ यह मैन्युअल ID/बारकोड पहले से मौजूद है!', 'error'); return; 
+                saveDataToFirebase(); // <-- यह लाइन जोड़ें
             } 
             products[productId] = { id: productId, barcode, manualId, name, price, details, fillingQuantity, unit, dateAdded: new Date().toISOString() }; 
             triggerHapticFeedback(); 
             if (history.state && history.state.modal) { history.back(); } else { closeAddModal(); } 
             searchAndSortProducts(); 
             showToast('✅ प्रोडक्ट सफलतापूर्वक जोड़ा गया!', 'success'); 
+            saveDataToFirebase(); // <-- यह लाइन जोड़ें
         }
         const debouncedSearch = debounce(searchAndSortProducts, 300);
         function searchAndSortProducts() { 
