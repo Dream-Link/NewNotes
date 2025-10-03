@@ -829,8 +829,11 @@
         }); 
     }
 
-  function renameCustomerInHistory(event, billId) {
-    // ...
+ function renameCustomerInHistory(event, billId) {
+    event.stopPropagation();
+    const billIndex = billHistory.findIndex(b => b.id.toString() === billId.toString());
+    if (billIndex === -1) return;
+    
     const currentName = billHistory[billIndex].customerName;
     const lang = translations[currentLanguage];
     
