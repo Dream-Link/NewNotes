@@ -480,6 +480,8 @@
             <button id="paymentTypeCancelBtn" class="w-full mt-3 bg-gray-200 text-gray-700 py-2 px-3 rounded-lg font-semibold modern-btn text-sm">कैंसल</button>
         </div>
     </div>
+       <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script>
     // --- 1. FIREBASE SETUP ---
     // !!! जरूरी: यहाँ अपनी Firebase प्रोजेक्ट की जानकारी भरें !!!
@@ -827,21 +829,19 @@
         }); 
     }
 
-    function renameCustomerInHistory(event, billId) {
-        event.stopPropagation();
-        const billIndex = billHistory.findIndex(b => b.id.toString() === billId.toString());
-        if (billIndex === -1) return;
-        const currentName = billHistory[billIndex].customerName;
-        showPromptModal( /* ... */ '...', '...', currentName, (newName) => {
-            if (newName && newName.trim()) {
-                billHistory[billIndex].customerName = newName.trim();
-                // *** FIREBASE SAVE ***
-                db.ref('storeData/billHistory').set(billHistory);
-                showToast('✅ ग्राहक का नाम अपडेट हो गया!', 'success');
-            }
-        });
-    }
-
+  function renameCustomerInHistory(event, billId) {
+    // ...
+    const currentName = billHistory[billIndex].customerName;
+    const lang = translations[currentLanguage];
+    
+    showPromptModal(lang.rename_customer_title, lang.rename_customer_message, currentName, (newName) => {
+        if (newName && newName.trim()) {
+            billHistory[billIndex].customerName = newName.trim();
+            db.ref('storeData/billHistory').set(billHistory);
+            showToast(lang.customer_renamed_success, 'success');
+        }
+    });
+}
     function loadBillFromHistory(event, billId) { /* ... (यह फंक्शन वैसा ही रहेगा) ... */ }
     function filterAndDisplayHistory() { /* ... (यह फंक्शन वैसा ही रहेगा) ... */ }
     function displayBillHistory(billsToDisplay = billHistory) { /* ... (यह फंक्शन वैसा ही रहेगा) ... */ }
@@ -899,7 +899,6 @@
     function selectCustomerName(name) { /* ... (यह फंक्शन वैसा ही रहेगा) ... */ }
 
 </script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+ 
 </body>
 </html>
